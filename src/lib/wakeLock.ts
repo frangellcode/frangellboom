@@ -12,12 +12,6 @@ const KeepAwake = registerPlugin<{ enable(): Promise<void>; disable(): Promise<v
 
 let sentinel: WakeLockSentinel | null = null;
 
-// TEMPORARY, testing only — remove before the App Store build: keeps the
-// iPhone awake the whole time the app is open, so it doesn't lock between
-// test runs. Exporting keeps the screen awake either way.
-const KEEP_AWAKE_WHILE_TESTING = true;
-if (isNativeApp && KEEP_AWAKE_WHILE_TESTING) KeepAwake.enable().catch(() => {});
-
 export async function requestWakeLock(): Promise<void> {
   if (isNativeApp) {
     await KeepAwake.enable().catch(() => {});
@@ -34,7 +28,7 @@ export async function requestWakeLock(): Promise<void> {
 
 export async function releaseWakeLock(): Promise<void> {
   if (isNativeApp) {
-    if (!KEEP_AWAKE_WHILE_TESTING) await KeepAwake.disable().catch(() => {});
+    await KeepAwake.disable().catch(() => {});
     return;
   }
   const current = sentinel;

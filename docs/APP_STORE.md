@@ -195,5 +195,4 @@ Cambia el código → `npm run ios` → sube **Version** y/o **Build** → Archi
 
 ## Antes de subir: pendientes
 
-1. **Quitar el modo de pruebas** que mantiene la pantalla encendida: `KEEP_AWAKE_WHILE_TESTING = false` en `src/lib/wakeLock.ts`.
-2. **PolarGrid:** su ficha tiene `instagram` en las palabras clave. Por la regla 5.2 es mejor quitarlo en la próxima versión.
+1. **PolarGrid:** su ficha tiene `instagram` en las palabras clave. Por la regla 5.2 es mejor quitarlo en la próxima versión.
