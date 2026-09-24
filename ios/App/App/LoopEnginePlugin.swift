@@ -210,6 +210,10 @@ final class LoopEngine {
     }
 
     func renderLoop(_ original: LoopRequest, to output: URL, progress: @escaping (Double) -> Void) async throws {
+        let started = Date()
+        func stage(_ name: String) {
+            CAPLog.print("LoopEngine: \(name) done at \(String(format: "%.1f", Date().timeIntervalSince(started))) s")
+        }
         var source = try await SourceInfo.load(original.source)
         var request = original
         let reversedURL = workDirectory.appendingPathComponent("reversed-\(UUID().uuidString).mov")
@@ -230,8 +234,15 @@ final class LoopEngine {
         let factor = Self.interpolationFactor(source, request)
         if factor > 1, #available(iOS 26.0, *) {
             let segment = CMTimeRange(start: time(request.start), duration: time(request.duration))
-            if try await writeInterpolated(source, segment: segment, factor: factor, to: denseURL, progress: { progress($0 * 0.35) }) {
-                CAPLog.print("LoopEngine: slow motion interpolated \(factor)x")
+            // Built straight at the output's size: interpolating 4K frames only
+            // to shrink them to 1080p afterwards would be most of the work for nothing.
+            let outputSize = Self.renderSize(source.orientedSize, shortSide: request.shortSide)
+            let scale = outputSize.width / source.orientedSize.width
+            let denseSize = CGSize(
+                width: CGFloat(max(2, Int((source.naturalSize.width * scale / 2).rounded()) * 2)),
+                height: CGFloat(max(2, Int((source.naturalSize.height * scale / 2).rounded()) * 2)))
+            if try await writeInterpolated(source, segment: segment, factor: factor, size: denseSize, to: denseURL, progress: { progress($0 * 0.35) }) {
+                stage("slow motion \(factor)x")
                 source = try await SourceInfo.load(denseURL)
                 request = request.startingAtZero(from: denseURL)
                 interpolateWeight = 0.35
@@ -248,6 +259,7 @@ final class LoopEngine {
             progress(interpolateWeight + $0 * (reverseEnd - interpolateWeight))
         }
 
+        stage("reverse")
         let reversedAsset = AVURLAsset(url: reversedURL, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
         guard let reversedTrack = try await reversedAsset.loadTracks(withMediaType: .video).first else {
             throw LoopError.failed("The reversed copy has no video track.")
@@ -260,17 +272,50 @@ final class LoopEngine {
             lastFrameTime: lastFrame
         )
         let renderSize = Self.renderSize(source.orientedSize, shortSide: request.shortSide)
+        // Every loop is the same frames, so only ONE back-and-forth cycle is
+        // encoded; the finished file repeats its already-compressed samples.
+        // A 12-second loop of a 4-second cycle costs one cycle's encoding.
+        let cycleURL = request.loops > 1 ? workDirectory.appendingPathComponent("cycle-\(UUID().uuidString).mp4") : output
+        defer { if cycleURL != output { try? FileManager.default.removeItem(at: cycleURL) } }
         try await render(
             builder.composition,
             track: builder.track,
             source: source,
             renderSize: renderSize,
             zoomRanges: builder.zoomRanges,
-            to: output,
+            to: cycleURL,
             codec: .hevc,
             keyframeEveryFrame: false
-        ) { progress(reverseEnd + $0 * (1 - reverseEnd)) }
+        ) { progress(reverseEnd + $0 * (1 - reverseEnd) * 0.97) }
+        stage("render cycle")
+        if cycleURL != output {
+            try await Self.repeatCycle(cycleURL, times: request.loops, to: output)
+            stage("repeat \(request.loops)x")
+        }
         progress(1)
+    }
+
+    /// Writes `times` copies of the cycle back to back without re-encoding.
+    private static func repeatCycle(_ cycle: URL, times: Int, to output: URL) async throws {
+        let asset = AVURLAsset(url: cycle, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+            throw LoopError.failed("The rendered cycle has no video track.")
+        }
+        let range = try await track.load(.timeRange)
+        let composition = AVMutableComposition()
+        guard let repeated = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            throw LoopError.failed("Couldn't repeat the loop.")
+        }
+        for index in 0..<times {
+            try repeated.insertTimeRange(range, of: track, at: CMTimeMultiply(range.duration, multiplier: Int32(index)))
+        }
+        guard let export = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+            throw LoopError.failed("Couldn't repeat the loop.")
+        }
+        export.outputURL = output
+        export.outputFileType = .mp4
+        await export.export()
+        guard export.status == .completed else { throw export.error ?? LoopError.failed("Couldn't repeat the loop.") }
     }
 
     /// How many frames per source frame the segment needs so that its slowest
@@ -298,8 +343,9 @@ final class LoopEngine {
     /// it (iOS 26's frame interpolation needs a recent chip), so the caller
     /// carries on with the original frames.
     @available(iOS 26.0, *)
-    private func writeInterpolated(_ source: SourceInfo, segment: CMTimeRange, factor: Int, to url: URL, progress: (Double) -> Void) async throws -> Bool {
-        let width = Int(source.naturalSize.width), height = Int(source.naturalSize.height)
+    private func writeInterpolated(_ source: SourceInfo, segment: CMTimeRange, factor: Int, size: CGSize, to url: URL, progress: (Double) -> Void) async throws -> Bool {
+        let width = Int(size.width), height = Int(size.height)
+        let resizes = size != source.naturalSize
         guard VTFrameRateConversionConfiguration.isSupported,
               let configuration = VTFrameRateConversionConfiguration(
                   frameWidth: width,
@@ -356,13 +402,16 @@ final class LoopEngine {
 
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: Self.writerSettings(
-            size: source.naturalSize,
+            size: size,
             source: source,
             codec: .hevc,
             bitsPerPixel: 0.4,
             keyframeEveryFrame: false
         ))
-        input.transform = source.uprightTransform
+        // The rotation's offset is in source pixels; scaled with the frames.
+        let sizeScale = size.width / source.naturalSize.width
+        let rotation = source.uprightTransform
+        input.transform = CGAffineTransform(a: rotation.a, b: rotation.b, c: rotation.c, d: rotation.d, tx: rotation.tx * sizeScale, ty: rotation.ty * sizeScale)
         input.expectsMediaDataInRealTime = false
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
         writer.add(input)
@@ -386,6 +435,14 @@ final class LoopEngine {
             let time = CMSampleBufferGetPresentationTimeStamp(sample)
             guard time >= segment.start, time < segment.end, let buffer = CMSampleBufferGetImageBuffer(sample) else { continue }
             let rgba = try convert(buffer, using: sourcePool)
+            // Real frames go through as decoded, unless they have to shrink too.
+            let video: CVPixelBuffer
+            if resizes {
+                video = try convert(buffer, using: videoPool)
+                CVBufferPropagateAttachments(buffer, video)
+            } else {
+                video = buffer
+            }
             if let previous {
                 try await append(previous.video, at: previous.time)
                 let gap = time - previous.time
@@ -424,7 +481,7 @@ final class LoopEngine {
                 }
             }
             CVBufferPropagateAttachments(buffer, rgba)
-            previous = (buffer, rgba, time)
+            previous = (video, rgba, time)
             progress((time - segment.start).seconds / segment.duration.seconds)
         }
         if let previous { try await append(previous.video, at: previous.time) }
@@ -448,7 +505,9 @@ final class LoopEngine {
             composition,
             track: track,
             source: source,
-            renderSize: Self.renderSize(source.orientedSize, shortSide: 360),
+            // Sharp at phone-screen size: about as wide as the preview is
+            // drawn on a 3x display, never wider than the source.
+            renderSize: Self.renderSize(source.orientedSize, maxWidth: 1080),
             zoomRanges: [],
             to: output,
             codec: .h264,
@@ -458,9 +517,10 @@ final class LoopEngine {
 
     /// Downscales (never upscales) so the short side is `shortSide`, keeping
     /// both sides even as encoders require.
-    static func renderSize(_ size: CGSize, shortSide: Int?) -> CGSize {
+    static func renderSize(_ size: CGSize, shortSide: Int? = nil, maxWidth: Int? = nil) -> CGSize {
         let short = min(size.width, size.height)
-        let scale = shortSide.map { min(1, CGFloat($0) / short) } ?? 1
+        var scale = shortSide.map { min(1, CGFloat($0) / short) } ?? 1
+        if let maxWidth { scale = min(scale, CGFloat(maxWidth) / size.width) }
         let even = { (value: CGFloat) in CGFloat(max(2, Int((value * scale / 2).rounded()) * 2)) }
         return CGSize(width: even(size.width), height: even(size.height))
     }
@@ -609,7 +669,8 @@ final class LoopEngine {
             size: renderSize,
             source: source,
             codec: codec,
-            bitsPerPixel: codec == .hevc ? 0.1 : 0.08,
+            // Every-frame-a-keyframe needs far more bits per frame to look clean.
+            bitsPerPixel: keyframeEveryFrame ? 0.4 : (codec == .hevc ? 0.1 : 0.08),
             keyframeEveryFrame: keyframeEveryFrame,
             keepsColor: keepsColor
         ))
@@ -713,9 +774,8 @@ private struct LoopComposition {
         self.frameDuration = time(1 / source.frameRate)
         track.preferredTransform = .identity
 
-        for _ in 0..<request.loops {
-            try addLoop()
-        }
+        // One cycle only — the render repeats it (see repeatCycle).
+        try addLoop()
     }
 
     private mutating func addLoop() throws {
@@ -767,8 +827,9 @@ private struct LoopComposition {
     /// reversed copy, where source time t sits at lastFrameTime - t.
     private mutating func backward(_ from: Double, _ to: Double, rate: Double) throws {
         let start = CMTimeMaximum(.zero, lastFrameTime - sourceTime(from)) + turnOffset(-1)
-        // Back at the very start, the segment's first frame is included.
-        let end = to == 0 ? reversedDuration : lastFrameTime - sourceTime(to)
+        // Back at the start, the cycle stops one frame short of the first
+        // frame: the next cycle opens on it, so it would otherwise show twice.
+        let end = to == 0 ? reversedDuration - frameDuration : lastFrameTime - sourceTime(to)
         try insert(CMTimeRange(start: start, end: CMTimeMaximum(start, CMTimeMinimum(end, reversedDuration))), of: reversedTrack, rate: rate)
     }
 

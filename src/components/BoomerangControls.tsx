@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { useT } from "../lib/i18n";
+import { useLanguage, useT } from "../lib/i18n";
+import { FadeText } from "./FadeText";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
 
 type AccentStyle = CSSProperties & { "--row-accent"?: string };
@@ -40,15 +41,16 @@ export function BoomerangControls({
   onResolutionChange,
 }: BoomerangControlsProps) {
   const t = useT();
+  const lang = useLanguage();
   return (
     <div className="controls">
       <div className="controls__header">
-        <span className="controls__heading">{t.settings}</span>
+        <span className="controls__heading"><FadeText value={t.settings} trigger={lang} /></span>
       </div>
 
       <div className="controls__row" style={{ "--row-accent": "var(--accent)" } as AccentStyle}>
         <span className="controls__label">
-          <span>{t.mode}</span>
+          <span><FadeText value={t.mode} trigger={lang} /></span>
         </span>
         <div className="chips">
           {MODES.map((value) => (
@@ -58,7 +60,7 @@ export function BoomerangControls({
               className={`chip${mode === value ? " chip--active" : ""}`}
               onClick={() => onModeChange(value)}
             >
-              {t.modes[value]}
+              <FadeText value={t.modes[value]} trigger={lang} />
             </button>
           ))}
         </div>
@@ -68,7 +70,7 @@ export function BoomerangControls({
         <div className="controls__collapse-inner controls__collapse-inner--glow">
           <div className="controls__row" style={{ "--row-accent": "var(--accent-4)" } as AccentStyle}>
             <span className="controls__label">
-              <span>{t.speed}</span>
+              <span><FadeText value={t.speed} trigger={lang} /></span>
             </span>
             <div className="chips">
               {SPEED_OPTIONS.map((opt) => (
@@ -88,7 +90,7 @@ export function BoomerangControls({
 
       <div className="controls__row" style={{ "--row-accent": "var(--accent-2)" } as AccentStyle}>
         <span className="controls__label">
-          <span>{t.quality}</span>
+          <span><FadeText value={t.quality} trigger={lang} /></span>
         </span>
         <div className="chips">
           {RESOLUTION_OPTIONS.map((opt) => (

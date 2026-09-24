@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { useT } from "../lib/i18n";
+import { useLanguage, useT } from "../lib/i18n";
+import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
 import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
 import type { VideoSource } from "../lib/videoSource";
@@ -11,6 +12,7 @@ interface VideoUploaderProps {
 
 export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
   const t = useT();
+  const lang = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -71,15 +73,15 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
           onChange={(e) => handleFiles(e.target.files)}
         />
         <div className="uploader__icon">🎥</div>
-        <p className="uploader__title">{t.importTitle}</p>
-        <p className="uploader__hint">{t.importHint}</p>
+        <p className="uploader__title"><FadeText value={t.importTitle} trigger={lang} /></p>
+        <p className="uploader__hint"><FadeText value={t.importHint} trigger={lang} /></p>
         {error && <p className="uploader__error">{error}</p>}
       </div>
 
       <div className="uploader__badges">
-        <span className="badge">{t.badgeOnDevice}</span>
+        <span className="badge"><FadeText value={t.badgeOnDevice} trigger={lang} /></span>
         <span className="uploader__badges-dot" aria-hidden="true" />
-        <span className="badge">{t.badgeQuality}</span>
+        <span className="badge"><FadeText value={t.badgeQuality} trigger={lang} /></span>
       </div>
     </div>
   );

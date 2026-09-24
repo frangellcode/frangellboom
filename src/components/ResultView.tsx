@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { useT } from "../lib/i18n";
+import { useLanguage, useT } from "../lib/i18n";
+import { FadeText } from "./FadeText";
 import { Confetti } from "./Confetti";
 import { isNativeApp } from "../lib/native";
 import { shareVideoNatively } from "../lib/nativeSave";
@@ -20,6 +21,7 @@ const LEAVE_MS = 250;
 
 export function ResultView({ result, onReset }: ResultViewProps) {
   const t = useT();
+  const lang = useLanguage();
   // Create and revoke the object URL inside the same effect (rather than a
   // useMemo + separate cleanup effect) so React StrictMode's dev-only
   // mount→cleanup→remount doesn't revoke a URL that never gets recreated —
@@ -55,23 +57,23 @@ export function ResultView({ result, onReset }: ResultViewProps) {
   return (
     <div className={`result${leaving ? " result--leaving" : ""}`}>
       <Confetti />
-      <p className="result__headline">{t.ready}</p>
+      <p className="result__headline"><FadeText value={t.ready} trigger={lang} /></p>
       <video src={url} className="result__video" autoPlay loop muted playsInline controls />
       <div className="result__actions">
         {isNativeApp ? (
           <button type="button" className="btn btn--primary" onClick={handleNativeSave}>
-            {t.save}
+            <FadeText value={t.save} trigger={lang} />
           </button>
         ) : (
           <a className="btn btn--primary" href={url} download="frangellboom.mp4">
-            {t.download}
+            <FadeText value={t.download} trigger={lang} />
           </a>
         )}
         <button type="button" className="btn btn--ghost" onClick={handleReset}>
-          {t.another}
+          <FadeText value={t.another} trigger={lang} />
         </button>
       </div>
-      {saveFailed && <p className="app__error">{t.saveFailed}</p>}
+      {saveFailed && <p className="app__error"><FadeText value={t.saveFailed} trigger={lang} /></p>}
     </div>
   );
 }

@@ -595,6 +595,11 @@
   transform: scale(0.9);
 }
 
+.preview__toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
 .total-duration {
   align-self: center;
   text-align: center;
@@ -1019,7 +1024,7 @@
 }
 
 .support__pill:active,
-.support__follow:active {
+.support__follow a:active {
   transform: scale(0.95);
 }
 
@@ -1035,13 +1040,18 @@
   gap: 4px;
   color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
-  text-decoration: none;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-  transition: transform 0.2s ease;
 }
 
-.support__follow span {
+/* Only the handle is the link — tapping the rest of the line does nothing. */
+.support__follow a {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: inherit;
   font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s ease;
 }
 
 .support__follow svg {

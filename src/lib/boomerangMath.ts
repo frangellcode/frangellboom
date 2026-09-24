@@ -90,9 +90,10 @@ const DEFAULT_TARGET_SECONDS = 8;
  * close to it a whole number of loops can land, never an extra loop that
  * overshoots.
  */
-export function deriveLoops(mode: Mode, speed: number, segmentDuration: number): number {
+export function deriveLoops(mode: Mode, speed: number, segmentDuration: number, native = false): number {
   const perLoop = perLoopDuration(mode, speed, segmentDuration);
   if (perLoop <= 0) return 1;
+  if (native) return deriveNativeLoops(mode, speed, perLoop);
   const target = mode === "classic" ? (CLASSIC_TARGET_SECONDS[speed] ?? DEFAULT_TARGET_SECONDS) : DEFAULT_TARGET_SECONDS;
   return Math.min(ABSOLUTE_MAX_LOOPS, Math.max(1, Math.floor(target / perLoop)));
 }
@@ -141,4 +142,26 @@ export function legsFor(mode: Mode): readonly Leg[] {
 /** Which leg index (if any) gets the zoom-in visual treatment. Only "zoom" has one. */
 export function zoomLegIndex(mode: Mode): number | null {
   return mode === "zoom" ? 1 : null;
+}
+
+// The iOS app renders on the phone's own video hardware, with none of the
+// webview's memory ceiling, so its loops can run longer: slow-motion classic
+// up to 12 s, everything else 10–14 s (as close to 12 as whole loops allow).
+const NATIVE_SLOW_MAX_SECONDS = 12;
+const NATIVE_MIN_SECONDS = 10;
+const NATIVE_TARGET_SECONDS = 12;
+const NATIVE_MAX_SECONDS = 14;
+
+function deriveNativeLoops(mode: Mode, speed: number, perLoop: number): number {
+  if (mode === "classic" && speed < 1) {
+    return Math.min(ABSOLUTE_MAX_LOOPS, Math.max(1, Math.floor(NATIVE_SLOW_MAX_SECONDS / perLoop)));
+  }
+  const fitting = Math.max(1, Math.floor(NATIVE_MAX_SECONDS / perLoop));
+  let best = fitting;
+  for (let loops = 1; loops <= fitting; loops++) {
+    const total = loops * perLoop;
+    if (total < NATIVE_MIN_SECONDS) continue;
+    if (Math.abs(total - NATIVE_TARGET_SECONDS) < Math.abs(best * perLoop - NATIVE_TARGET_SECONDS)) best = loops;
+  }
+  return Math.min(ABSOLUTE_MAX_LOOPS, best);
 }

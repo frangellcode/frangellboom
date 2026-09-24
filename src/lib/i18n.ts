@@ -25,7 +25,7 @@ const es = {
   speed: "Velocidad",
   quality: "Calidad de salida",
   modes: { classic: "Clásico", ease: "Suave", freeze: "Pausa", pulse: "Pulso", zoom: "Zoom" },
-  live: "● EN VIVO",
+  live: "EN VIVO",
   pausePreview: "Pausar vista previa",
   playPreview: "Reproducir vista previa",
   flavor: ["Dándole la vuelta a los píxeles…", "Afinando la ida y vuelta…", "Puliendo cada cuadro…", "Ya casi está"],
@@ -78,7 +78,7 @@ const en: typeof es = {
   speed: "Speed",
   quality: "Output quality",
   modes: { classic: "Classic", ease: "Ease", freeze: "Freeze", pulse: "Pulse", zoom: "Zoom" },
-  live: "● LIVE",
+  live: "LIVE",
   pausePreview: "Pause preview",
   playPreview: "Play preview",
   flavor: ["Flipping the pixels around…", "Tuning the back-and-forth…", "Polishing every frame…", "Almost there"],
@@ -148,8 +148,12 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-/** The current language's strings; re-renders whenever the EN/ES button flips it. */
+/** The current language; re-renders whenever the EN/ES button flips it. */
+export function useLanguage(): Language {
+  return useSyncExternalStore(subscribe, () => language);
+}
+
+/** The current language's strings. */
 export function useT(): Strings {
-  const current = useSyncExternalStore(subscribe, () => language);
-  return current === "es" ? es : en;
+  return useLanguage() === "es" ? es : en;
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toggleLanguage, useT } from "./lib/i18n";
+import { toggleLanguage, useLanguage, useT } from "./lib/i18n";
+import { FadeText } from "./components/FadeText";
 import { SupportFooter } from "./components/SupportFooter";
 import { VideoUploader } from "./components/VideoUploader";
 import { BoomerangMark } from "./components/BoomerangMark";
@@ -31,6 +32,7 @@ const OVERLAY_LEAVE_MS = 280;
 
 function App() {
   const t = useT();
+  const lang = useLanguage();
   const [step, setStep] = useState<Step>("upload");
   const [source, setSource] = useState<VideoSource | null>(null);
   const videoUrl = source?.url ?? null;
@@ -115,7 +117,7 @@ function App() {
   // fixed target total duration per mode/speed (Instagram-style — normal
   // vs. slow motion each have one "right" length, not a range to pick from).
   const loops = useMemo(
-    () => deriveLoops(mode, effectiveSpeed, clampedSegmentDuration),
+    () => deriveLoops(mode, effectiveSpeed, clampedSegmentDuration, isNativeApp),
     [mode, effectiveSpeed, clampedSegmentDuration],
   );
 
@@ -188,10 +190,10 @@ function App() {
         <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="app__logo" width="36" height="36" />
         <div>
           <h1 className="app__title">Frangellboom</h1>
-          <p className="app__tagline">{t.tagline}</p>
+          <p className="app__tagline"><FadeText value={t.tagline} trigger={lang} /></p>
         </div>
         <button type="button" className="app__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
-          {t.langToggle}
+          <FadeText value={t.langToggle} trigger={lang} />
         </button>
       </header>
 
@@ -218,7 +220,7 @@ function App() {
               <div className="controls controls--single">
                 <div className="controls__row">
                   <label className="controls__label" htmlFor="segment-duration">
-                    <span>{t.segmentLength}</span>
+                    <span><FadeText value={t.segmentLength} trigger={lang} /></span>
                     <span className="controls__value">{clampedSegmentDuration.toFixed(1)}s</span>
                   </label>
                   <input
@@ -235,7 +237,7 @@ function App() {
 
               <div className="editor__actions">
                 <button type="button" className="btn btn--ghost" onClick={handleReset}>
-                  {t.back}
+                  <FadeText value={t.back} trigger={lang} />
                 </button>
                 <button
                   type="button"
@@ -262,7 +264,7 @@ function App() {
               />
 
               <p className="total-duration">
-                {t.segment}: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · {t.totalLength}:{" "}
+                <FadeText value={t.segment} trigger={lang} />: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · <FadeText value={t.totalLength} trigger={lang} />:{" "}
                 <strong>{totalDuration.toFixed(1)}s</strong>
               </p>
 
@@ -279,7 +281,7 @@ function App() {
 
               <div className="editor__actions">
                 <button type="button" className="btn btn--ghost" onClick={() => setStep("trim")}>
-                  {t.trimBack}
+                  <FadeText value={t.trimBack} trigger={lang} />
                 </button>
                 <button
                   type="button"
@@ -288,7 +290,7 @@ function App() {
                   disabled={step === "processing"}
                 >
                   <BoomerangMark className="btn__mark" />
-                  {t.create}
+                  <FadeText value={t.create} trigger={lang} />
                 </button>
               </div>
             </div>
