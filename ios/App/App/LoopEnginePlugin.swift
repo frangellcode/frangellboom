@@ -484,8 +484,11 @@ private struct LoopComposition {
     private let reversedTrack: AVAssetTrack
     private let request: LoopRequest
     private let lastFrameTime: CMTime
+    private let reversedDuration: CMTime
     private let frameDuration: CMTime
     private var cursor = CMTime.zero
+    /// +1 forward, -1 backward, 0 a hold; nil before the first leg.
+    private var previousDirection: Int?
 
     init(source: SourceInfo, reversedTrack: AVAssetTrack, request: LoopRequest, lastFrameTime: CMTime) throws {
         guard let track = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
@@ -496,6 +499,7 @@ private struct LoopComposition {
         self.reversedTrack = reversedTrack
         self.request = request
         self.lastFrameTime = lastFrameTime
+        self.reversedDuration = reversedTrack.timeRange.duration
         self.frameDuration = time(1 / source.frameRate)
         track.preferredTransform = .identity
 
@@ -532,21 +536,35 @@ private struct LoopComposition {
         time(request.start + fraction * request.duration)
     }
 
+    // Every leg is half-open, [from, to), so legs running the same way join
+    // without repeating a frame. Where the motion turns around, the frame it
+    // turns on already closed the previous leg, so the new leg starts one
+    // frame later — otherwise every turn would hold for a frame, a visible
+    // stutter at the peak and at the start of each loop.
+    private mutating func turnOffset(_ direction: Int) -> CMTime {
+        defer { previousDirection = direction }
+        guard let previousDirection, previousDirection != direction else { return .zero }
+        return frameDuration
+    }
+
     /// Source fractions `from` → `to`, played forwards from the original.
     private mutating func forward(_ from: Double, _ to: Double, rate: Double) throws {
-        try insert(CMTimeRange(start: sourceTime(from), end: sourceTime(to)), of: source.track, rate: rate)
+        let start = sourceTime(from) + turnOffset(1)
+        try insert(CMTimeRange(start: start, end: CMTimeMaximum(start, sourceTime(to))), of: source.track, rate: rate)
     }
 
     /// Source fractions `from` → `to` (from > to), played backwards from the
     /// reversed copy, where source time t sits at lastFrameTime - t.
     private mutating func backward(_ from: Double, _ to: Double, rate: Double) throws {
-        let start = CMTimeMaximum(.zero, lastFrameTime - sourceTime(from))
-        let end = CMTimeMaximum(start, lastFrameTime - sourceTime(to) + frameDuration)
-        try insert(CMTimeRange(start: start, end: end), of: reversedTrack, rate: rate)
+        let start = CMTimeMaximum(.zero, lastFrameTime - sourceTime(from)) + turnOffset(-1)
+        // Back at the very start, the segment's first frame is included.
+        let end = to == 0 ? reversedDuration : lastFrameTime - sourceTime(to)
+        try insert(CMTimeRange(start: start, end: CMTimeMaximum(start, CMTimeMinimum(end, reversedDuration))), of: reversedTrack, rate: rate)
     }
 
     /// Holds one frame (the segment's last or first) for freezeHoldSeconds.
     private mutating func hold(atEnd: Bool) throws {
+        previousDirection = 0
         let frame = atEnd
             ? CMTimeRange(start: CMTimeMaximum(.zero, lastFrameTime), duration: frameDuration)
             : CMTimeRange(start: time(request.start), duration: frameDuration)
