@@ -1,7 +1,10 @@
 import { useCallback, useRef, useState } from "react";
+import { isNativeApp } from "../lib/native";
+import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
+import type { VideoSource } from "../lib/videoSource";
 
 interface VideoUploaderProps {
-  onSelect: (file: File) => void;
+  onSelect: (source: VideoSource) => void;
   error?: string | null;
 }
 
@@ -12,18 +15,36 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
   const handleFiles = useCallback(
     (files: FileList | null) => {
       const file = files?.[0];
-      if (file && file.type.startsWith("video/")) {
-        onSelect(file);
+      if (!file || !file.type.startsWith("video/")) return;
+      if (isNativeApp) {
+        importFileNatively(file)
+          .then(onSelect)
+          .catch((err) => console.error(err));
+        return;
       }
+      onSelect({ name: file.name, url: URL.createObjectURL(file), data: file });
     },
     [onSelect],
   );
+
+  // The iOS app opens the system picker instead of an <input type="file">:
+  // it shows only videos, and hands back the original file as it sits in
+  // Photos instead of a re-compressed copy.
+  const openPicker = useCallback(() => {
+    if (!isNativeApp) {
+      inputRef.current?.click();
+      return;
+    }
+    pickVideoNatively()
+      .then((source) => source && onSelect(source))
+      .catch((err) => console.error(err));
+  }, [onSelect]);
 
   return (
     <div className="uploader-group">
       <div
         className={`uploader${dragging ? " uploader--dragging" : ""}`}
-        onClick={() => inputRef.current?.click()}
+        onClick={openPicker}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -37,7 +58,7 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+          if (e.key === "Enter" || e.key === " ") openPicker();
         }}
       >
         <input

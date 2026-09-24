@@ -1,6 +1,7 @@
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import { extOf } from "./boomerang";
+import type { VideoSource } from "./videoSource";
 
 export interface PreviewClipParams {
   start: number;
@@ -17,11 +18,11 @@ export interface PreviewClipParams {
  */
 export async function extractPreviewClip(
   ffmpeg: FFmpeg,
-  inputFile: File,
+  input: VideoSource,
   { start, duration }: PreviewClipParams,
 ): Promise<Blob> {
-  const inputName = "preview_src" + extOf(inputFile.name);
-  await ffmpeg.writeFile(inputName, await fetchFile(inputFile));
+  const inputName = "preview_src" + extOf(input.name);
+  await ffmpeg.writeFile(inputName, await fetchFile(input.data));
 
   try {
     await ffmpeg.exec([
