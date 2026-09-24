@@ -96,7 +96,7 @@ En cada una:
 
 ## 7. Ficha de la tienda
 
-**Capturas (obligatorio):** tamaño iPhone 6.9". Sirven las de tu iPhone 15 Pro Max (1290 × 2796). Entre 4 y 6: inicio, recorte del tramo, vista previa con los modos, exportando, resultado. Una tanda con la app en inglés y otra en español (botón EN/ES). Usa un video tuyo que se vea bien, **sin** logos ni marcas de terceros en pantalla.
+**Capturas (obligatorio):** ya están hechas, en tamaño iPhone 6.9" (1320 × 2868): `docs/screenshots/en/` para English (U.S.) y `docs/screenshots/es/` para Spanish. Son 5 (inicio, recorte, modos, exportando, resultado) y usan un video generado para la app, sin contenido ni marcas de terceros. En App Store Connect, dentro de cada idioma, arrástralas en orden a **iPhone 6.9" Display**.
 
 **Subtitle (máx. 30):** EN `Back-and-forth video loops` · ES `Bucles de video ida y vuelta`
 
