@@ -522,7 +522,7 @@
 
 .preview__video {
   width: 100%;
-  max-height: 22svh;
+  max-height: 34svh;
   object-fit: contain;
   background: #000;
   transition: transform 0.25s ease;
