@@ -102,6 +102,11 @@ struct LoopRequest {
     let loops: Int
     /// The output's short side in pixels, or nil to keep the source's.
     let shortSide: Int?
+
+    /// The same loop, made from a file that already holds just the segment.
+    func startingAtZero(from url: URL) -> LoopRequest {
+        LoopRequest(source: url, start: 0, duration: duration, mode: mode, speed: speed, loops: loops, shortSide: shortSide)
+    }
 }
 
 enum LoopError: LocalizedError {
@@ -204,17 +209,44 @@ final class LoopEngine {
         self.workDirectory = workDirectory
     }
 
-    func renderLoop(_ request: LoopRequest, to output: URL, progress: @escaping (Double) -> Void) async throws {
-        let source = try await SourceInfo.load(request.source)
+    func renderLoop(_ original: LoopRequest, to output: URL, progress: @escaping (Double) -> Void) async throws {
+        var source = try await SourceInfo.load(original.source)
+        var request = original
         let reversedURL = workDirectory.appendingPathComponent("reversed-\(UUID().uuidString).mov")
-        defer { try? FileManager.default.removeItem(at: reversedURL) }
+        let denseURL = workDirectory.appendingPathComponent("dense-\(UUID().uuidString).mov")
+        defer {
+            try? FileManager.default.removeItem(at: reversedURL)
+            try? FileManager.default.removeItem(at: denseURL)
+        }
+
+        // Slow motion: stretching a 30 or 60 fps clip only repeats its frames
+        // (0.5x of 60 fps is 30 real frames a second — the choppiness the
+        // web version could only paper over with crossfades). Where the phone
+        // can, the segment is first rebuilt with the missing in-between frames
+        // synthesised by Apple's frame interpolation, then used in place of
+        // the original from here on.
+        var interpolateWeight = 0.0
+        #if !targetEnvironment(simulator)
+        let factor = Self.interpolationFactor(source, request)
+        if factor > 1, #available(iOS 26.0, *) {
+            let segment = CMTimeRange(start: time(request.start), duration: time(request.duration))
+            if try await writeInterpolated(source, segment: segment, factor: factor, to: denseURL, progress: { progress($0 * 0.35) }) {
+                CAPLog.print("LoopEngine: slow motion interpolated \(factor)x")
+                source = try await SourceInfo.load(denseURL)
+                request = request.startingAtZero(from: denseURL)
+                interpolateWeight = 0.35
+            }
+        }
+        #endif
 
         // The reverse pass only has to decode and encode the short segment;
         // the final render encodes the whole (looped) output. Weighted roughly
         // by how many frames each one pushes through the encoder.
-        let reverseWeight = 0.3
+        let reverseEnd = interpolateWeight + (1 - interpolateWeight) * 0.3
         let segment = CMTimeRange(start: time(request.start), duration: time(request.duration))
-        let lastFrame = try await writeReversed(source, segment: segment, to: reversedURL) { progress($0 * reverseWeight) }
+        let lastFrame = try await writeReversed(source, segment: segment, to: reversedURL) {
+            progress(interpolateWeight + $0 * (reverseEnd - interpolateWeight))
+        }
 
         let reversedAsset = AVURLAsset(url: reversedURL, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
         guard let reversedTrack = try await reversedAsset.loadTracks(withMediaType: .video).first else {
@@ -237,9 +269,173 @@ final class LoopEngine {
             to: output,
             codec: .hevc,
             keyframeEveryFrame: false
-        ) { progress(reverseWeight + $0 * (1 - reverseWeight)) }
+        ) { progress(reverseEnd + $0 * (1 - reverseEnd)) }
         progress(1)
     }
+
+    /// How many frames per source frame the segment needs so that its slowest
+    /// part still plays at 60 real frames a second — 1 when nothing is slowed.
+    private static func interpolationFactor(_ source: SourceInfo, _ request: LoopRequest) -> Int {
+        let slowest: Double
+        switch request.mode {
+        case .classic: slowest = request.speed
+        case .ease: slowest = easeZones.map(\.factor).min() ?? 1
+        case .freeze, .pulse, .zoom: slowest = 1
+        }
+        guard slowest < 1 else { return 1 }
+        return min(8, max(2, Int((60 / (source.frameRate * slowest)).rounded(.up))))
+    }
+
+    // MARK: - Frame interpolation
+
+    // Frame interpolation runs on the phone's neural engine; the simulator
+    // has none, so there it's left out and slow motion repeats frames.
+    #if !targetEnvironment(simulator)
+
+    /// Writes `segment` with `factor - 1` synthesised frames between every
+    /// pair of real ones (same timing, `factor` times the frame rate), starting
+    /// at time 0. Returns false — writing nothing — where the phone can't do
+    /// it (iOS 26's frame interpolation needs a recent chip), so the caller
+    /// carries on with the original frames.
+    @available(iOS 26.0, *)
+    private func writeInterpolated(_ source: SourceInfo, segment: CMTimeRange, factor: Int, to url: URL, progress: (Double) -> Void) async throws -> Bool {
+        let width = Int(source.naturalSize.width), height = Int(source.naturalSize.height)
+        guard VTFrameRateConversionConfiguration.isSupported,
+              let configuration = VTFrameRateConversionConfiguration(
+                  frameWidth: width,
+                  frameHeight: height,
+                  usePrecomputedFlow: false,
+                  qualityPrioritization: .quality,
+                  revision: VTFrameRateConversionConfiguration.defaultRevision),
+              let processingFormat = configuration.supportedPixelFormats.first else {
+            return false
+        }
+
+        // The interpolator works on RGBA (half float — HDR survives it), while
+        // the video decodes to and encodes from YUV. Real frames go straight
+        // through; each one is also converted to RGBA to interpolate from, and
+        // the synthesised frames are converted back to the video's own YUV.
+        func makePool(_ base: [String: Any], format: OSType) -> CVPixelBufferPool? {
+            var attributes = base
+            attributes[kCVPixelBufferPixelFormatTypeKey as String] = format
+            attributes[kCVPixelBufferWidthKey as String] = width
+            attributes[kCVPixelBufferHeightKey as String] = height
+            attributes[kCVPixelBufferIOSurfacePropertiesKey as String] = attributes[kCVPixelBufferIOSurfacePropertiesKey as String] ?? [:]
+            var pool: CVPixelBufferPool?
+            CVPixelBufferPoolCreate(nil, nil, attributes as CFDictionary, &pool)
+            return pool
+        }
+        guard let sourcePool = makePool(configuration.sourcePixelBufferAttributes, format: processingFormat),
+              let destinationPool = makePool(configuration.destinationPixelBufferAttributes, format: processingFormat),
+              let videoPool = makePool([:], format: source.pixelFormat) else { return false }
+        var transferSession: VTPixelTransferSession?
+        VTPixelTransferSessionCreate(allocator: nil, pixelTransferSessionOut: &transferSession)
+        guard let transferSession else { return false }
+        defer { VTPixelTransferSessionInvalidate(transferSession) }
+
+        func convert(_ buffer: CVPixelBuffer, using pool: CVPixelBufferPool) throws -> CVPixelBuffer {
+            var converted: CVPixelBuffer?
+            CVPixelBufferPoolCreatePixelBuffer(nil, pool, &converted)
+            guard let converted, VTPixelTransferSessionTransferImage(transferSession, from: buffer, to: converted) == noErr else {
+                throw LoopError.failed("Couldn't convert a frame for slow motion.")
+            }
+            return converted
+        }
+
+        let processor = VTFrameProcessor()
+        try processor.startSession(configuration: configuration)
+        defer { processor.endSession() }
+
+        let reader = try AVAssetReader(asset: source.asset)
+        reader.timeRange = segment
+        let output = AVAssetReaderTrackOutput(track: source.track, outputSettings: [
+            kCVPixelBufferPixelFormatTypeKey as String: source.pixelFormat,
+        ])
+        output.alwaysCopiesSampleData = false
+        reader.add(output)
+
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: Self.writerSettings(
+            size: source.naturalSize,
+            source: source,
+            codec: .hevc,
+            bitsPerPixel: 0.4,
+            keyframeEveryFrame: false
+        ))
+        input.transform = source.uprightTransform
+        input.expectsMediaDataInRealTime = false
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
+        writer.add(input)
+        guard reader.startReading() else { throw reader.error ?? LoopError.failed("Couldn't read the video.") }
+        guard writer.startWriting() else { throw writer.error ?? LoopError.failed("Couldn't start the slow-motion pass.") }
+        writer.startSession(atSourceTime: .zero)
+
+        func append(_ buffer: CVPixelBuffer, at time: CMTime) async throws {
+            while !input.isReadyForMoreMediaData {
+                try await Task.sleep(nanoseconds: 2_000_000)
+            }
+            guard adaptor.append(buffer, withPresentationTime: time - segment.start) else {
+                throw writer.error ?? LoopError.failed("Couldn't write the slow-motion pass.")
+            }
+        }
+
+        let phases = (1..<factor).map { Float($0) / Float(factor) }
+        var previous: (video: CVPixelBuffer, rgba: CVPixelBuffer, time: CMTime)?
+        while let sample = output.copyNextSampleBuffer() {
+            try Task.checkCancellation()
+            let time = CMSampleBufferGetPresentationTimeStamp(sample)
+            guard time >= segment.start, time < segment.end, let buffer = CMSampleBufferGetImageBuffer(sample) else { continue }
+            let rgba = try convert(buffer, using: sourcePool)
+            if let previous {
+                try await append(previous.video, at: previous.time)
+                let gap = time - previous.time
+                var destinations: [(buffer: CVPixelBuffer, time: CMTime)] = []
+                for phase in phases {
+                    var destination: CVPixelBuffer?
+                    CVPixelBufferPoolCreatePixelBuffer(nil, destinationPool, &destination)
+                    guard let destination else { throw LoopError.failed("Out of memory for slow motion.") }
+                    destinations.append((destination, previous.time + CMTimeMultiplyByFloat64(gap, multiplier: Float64(phase))))
+                }
+                guard let sourceFrame = VTFrameProcessorFrame(buffer: previous.rgba, presentationTimeStamp: previous.time),
+                      let nextFrame = VTFrameProcessorFrame(buffer: rgba, presentationTimeStamp: time) else {
+                    throw LoopError.failed("Couldn't prepare frames for slow motion.")
+                }
+                let destinationFrames = destinations.compactMap { VTFrameProcessorFrame(buffer: $0.buffer, presentationTimeStamp: $0.time) }
+                guard destinationFrames.count == destinations.count,
+                      let parameters = VTFrameRateConversionParameters(
+                          sourceFrame: sourceFrame,
+                          nextFrame: nextFrame,
+                          opticalFlow: nil,
+                          interpolationPhase: phases,
+                          submissionMode: .sequential,
+                          destinationFrames: destinationFrames) else {
+                    throw LoopError.failed("Couldn't prepare frames for slow motion.")
+                }
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    processor.process(parameters: parameters) { _, error in
+                        if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+                    }
+                }
+                for destination in destinations {
+                    CVBufferPropagateAttachments(previous.rgba, destination.buffer)
+                    let video = try convert(destination.buffer, using: videoPool)
+                    CVBufferPropagateAttachments(previous.video, video)
+                    try await append(video, at: destination.time)
+                }
+            }
+            CVBufferPropagateAttachments(buffer, rgba)
+            previous = (buffer, rgba, time)
+            progress((time - segment.start).seconds / segment.duration.seconds)
+        }
+        if let previous { try await append(previous.video, at: previous.time) }
+        if reader.status == .failed { throw reader.error ?? LoopError.failed("Couldn't read the video.") }
+
+        input.markAsFinished()
+        await writer.finishWriting()
+        guard writer.status == .completed else { throw writer.error ?? LoopError.failed("Couldn't finish the slow-motion pass.") }
+        return true
+    }
+    #endif
 
     func renderPreview(source url: URL, start: Double, duration: Double, to output: URL) async throws {
         let source = try await SourceInfo.load(url)
@@ -455,7 +651,9 @@ final class LoopEngine {
     ) -> [String: Any] {
         let fps = Double(source.outputFrameRate)
         // Roughly what the iPhone camera itself uses: ~50 Mbps for 4K60 HEVC.
-        let bitrate = max(2_000_000, Double(size.width * size.height) * fps * bitsPerPixel)
+        // Capped where the hardware encoder stops keeping up; only the
+        // intermediate files at 4K ever get near it.
+        let bitrate = min(160_000_000, max(2_000_000, Double(size.width * size.height) * fps * bitsPerPixel))
         var compression: [String: Any] = [
             AVVideoAverageBitRateKey: bitrate,
             AVVideoExpectedSourceFrameRateKey: fps,
