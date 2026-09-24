@@ -164,6 +164,15 @@ private struct SourceInfo {
         return CGSize(width: abs(rect.width), height: abs(rect.height))
     }
 
+    /// The rotation that turns a stored frame upright, moved so the picture
+    /// lands at (0, 0). iPhone videos already carry that offset, but a file
+    /// from elsewhere may hold the bare rotation, which would draw the whole
+    /// picture outside the frame — a black video.
+    var uprightTransform: CGAffineTransform {
+        let rect = CGRect(origin: .zero, size: naturalSize).applying(transform)
+        return transform.concatenating(CGAffineTransform(translationX: -rect.minX, y: -rect.minY))
+    }
+
     /// Output frame rate: the source's, but a 120/240 fps slow-motion clip is
     /// played back at 60 like everything else.
     var outputFrameRate: Int32 { Int32(min(60, max(24, frameRate.rounded()))) }
@@ -284,7 +293,7 @@ final class LoopEngine {
             bitsPerPixel: 0.4,
             keyframeEveryFrame: false
         ))
-        input.transform = source.transform
+        input.transform = source.uprightTransform
         input.expectsMediaDataInRealTime = false
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
         writer.add(input)
@@ -361,7 +370,7 @@ final class LoopEngine {
         progress: @escaping (Double) -> Void
     ) async throws {
         let oriented = source.orientedSize
-        let base = source.transform.concatenating(CGAffineTransform(
+        let base = source.uprightTransform.concatenating(CGAffineTransform(
             scaleX: renderSize.width / oriented.width,
             y: renderSize.height / oriented.height
         ))
@@ -429,6 +438,9 @@ final class LoopEngine {
             throw reader.error ?? LoopError.failed("Couldn't read the composition.")
         }
         input.markAsFinished()
+        // Without this the file ends where the last frame starts, so a loop
+        // that finishes on a hold (freeze) would lose that whole hold.
+        writer.endSession(atSourceTime: composition.duration)
         await writer.finishWriting()
         guard writer.status == .completed else { throw writer.error ?? LoopError.failed("Couldn't finish the export.") }
     }
