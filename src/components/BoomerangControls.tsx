@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { t } from "../lib/i18n";
+import { useT } from "../lib/i18n";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
 
 type AccentStyle = CSSProperties & { "--row-accent"?: string };
@@ -13,13 +13,7 @@ interface BoomerangControlsProps {
   onResolutionChange: (value: Resolution) => void;
 }
 
-const MODE_OPTIONS: { value: Mode; label: string }[] = [
-  { value: "classic", label: t.modes.classic },
-  { value: "ease", label: t.modes.ease },
-  { value: "freeze", label: t.modes.freeze },
-  { value: "pulse", label: t.modes.pulse },
-  { value: "zoom", label: t.modes.zoom },
-];
+const MODES: Mode[] = ["classic", "ease", "freeze", "pulse", "zoom"];
 
 // Only "classic" exposes a speed picker (see App.tsx) — every other mode has
 // a fixed, non-configurable motion, so only the two speeds that have a clear
@@ -45,6 +39,7 @@ export function BoomerangControls({
   resolution,
   onResolutionChange,
 }: BoomerangControlsProps) {
+  const t = useT();
   return (
     <div className="controls">
       <div className="controls__header">
@@ -56,14 +51,14 @@ export function BoomerangControls({
           <span>{t.mode}</span>
         </span>
         <div className="chips">
-          {MODE_OPTIONS.map((opt) => (
+          {MODES.map((value) => (
             <button
-              key={opt.value}
+              key={value}
               type="button"
-              className={`chip${mode === opt.value ? " chip--active" : ""}`}
-              onClick={() => onModeChange(opt.value)}
+              className={`chip${mode === value ? " chip--active" : ""}`}
+              onClick={() => onModeChange(value)}
             >
-              {opt.label}
+              {t.modes[value]}
             </button>
           ))}
         </div>

@@ -1,9 +1,5 @@
+import { useSyncExternalStore } from "react";
 import { isNativeApp } from "./native";
-
-// The app speaks the phone's language: Spanish for any Spanish locale,
-// English otherwise. In the iOS app navigator.language follows the app's
-// own language (iOS Settings → Frangellboom → Language).
-const spanish = /^es\b/i.test(navigator.language);
 
 const es = {
   tagline: "bucles de ida y vuelta en alta calidad",
@@ -38,6 +34,24 @@ const es = {
   save: "Guardar o compartir",
   saveFailed: "No se pudo guardar el video. Revisa que tengas espacio libre e inténtalo de nuevo.",
   another: "Crear otro",
+  /** Shows the language you'd switch TO, not the current one. */
+  langToggle: "EN",
+  langToggleLabel: "Switch to English",
+  donateLabel: "Ayúdanos a mantener la app",
+  donate: "Donar",
+  followUs: "Síguenos en",
+  tipLabel: "¿Te gusta Frangellboom?",
+  tip: "Deja una propina",
+  tipJar: {
+    title: "Apoya a Frangellboom",
+    body: "Frangellboom es gratis y siempre lo será. Una propina ayuda a mantenerla — no desbloquea nada, ya tienes todas las funciones.",
+    loading: "Cargando…",
+    unavailable: "Las propinas no están disponibles ahora. Inténtalo más tarde.",
+    thanks: "¡Gracias! Tu apoyo significa mucho.",
+    pending: "Tu propina está esperando aprobación. ¡Gracias!",
+    failed: "La compra no se completó. No se te cobró nada.",
+    close: "Cerrar",
+  },
 };
 
 const en: typeof es = {
@@ -73,7 +87,69 @@ const en: typeof es = {
   save: "Save or share",
   saveFailed: "The video couldn't be saved. Check that you have free space and try again.",
   another: "Make another",
+  langToggle: "ES",
+  langToggleLabel: "Cambiar a español",
+  donateLabel: "Help keep this app alive",
+  donate: "Donate",
+  followUs: "Follow us at",
+  tipLabel: "Enjoying Frangellboom?",
+  tip: "Leave a tip",
+  tipJar: {
+    title: "Support Frangellboom",
+    body: "Frangellboom is free and always will be. A tip helps keep it going — it unlocks nothing, every feature is already yours.",
+    loading: "Loading…",
+    unavailable: "Tips aren’t available right now. Try again later.",
+    thanks: "Thank you! Your support means a lot.",
+    pending: "Your tip is waiting for approval. Thank you!",
+    failed: "The purchase didn’t go through. You weren’t charged.",
+    close: "Close",
+  },
 };
 
-export const t = spanish ? es : en;
-export const lang = spanish ? "es" : "en";
+export type Language = "en" | "es";
+export type Strings = typeof es;
+
+const STORAGE_KEY = "frangellboom:language";
+
+/** The last language picked with the EN/ES button; until then, the phone's. */
+function initialLanguage(): Language {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "en" || stored === "es") return stored;
+  } catch {
+    // storage unavailable (private browsing, disabled) — fall through
+  }
+  return /^es\b/i.test(navigator.language) ? "es" : "en";
+}
+
+let language = initialLanguage();
+const listeners = new Set<() => void>();
+
+/** Keeps <html lang> in step with the UI, so VoiceOver reads Spanish as
+ *  Spanish and the browser doesn't offer to translate it. */
+function applyDocumentLanguage() {
+  document.documentElement.lang = language;
+}
+applyDocumentLanguage();
+
+export function toggleLanguage() {
+  language = language === "en" ? "es" : "en";
+  try {
+    localStorage.setItem(STORAGE_KEY, language);
+  } catch {
+    // keep the in-memory pick
+  }
+  applyDocumentLanguage();
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** The current language's strings; re-renders whenever the EN/ES button flips it. */
+export function useT(): Strings {
+  const current = useSyncExternalStore(subscribe, () => language);
+  return current === "es" ? es : en;
+}

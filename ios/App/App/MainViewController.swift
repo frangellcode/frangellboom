@@ -7,5 +7,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(VideoPickerPlugin())
         bridge?.registerPluginInstance(KeepAwakePlugin())
         bridge?.registerPluginInstance(LoopEnginePlugin())
+        bridge?.registerPluginInstance(TipJarPlugin())
     }
 }

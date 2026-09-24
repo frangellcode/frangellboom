@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { t } from "../lib/i18n";
+import { useT } from "../lib/i18n";
 import { isNativeApp } from "../lib/native";
 import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
 import type { VideoSource } from "../lib/videoSource";
@@ -10,6 +10,7 @@ interface VideoUploaderProps {
 }
 
 export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 

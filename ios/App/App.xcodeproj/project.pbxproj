@@ -22,6 +22,7 @@
 		A1B2C3D4E5F6000000000107 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000106 /* InfoPlist.strings */; };
 		A1B2C3D4E5F6000000000203 /* VideoPickerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000202 /* VideoPickerPlugin.swift */; };
 		A1B2C3D4E5F6000000000201 /* LoopEnginePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000200 /* LoopEnginePlugin.swift */; };
+		A1B2C3D4E5F6000000000301 /* TipJarPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000300 /* TipJarPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,8 @@
 		A1B2C3D4E5F6000000000109 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000000000202 /* VideoPickerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPickerPlugin.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000000000200 /* LoopEnginePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopEnginePlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000300 /* TipJarPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipJarPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000302 /* Frangellboom.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Frangellboom.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +87,8 @@
 				A1B2C3D4E5F6000000000100 /* KeepAwakePlugin.swift */,
 				A1B2C3D4E5F6000000000202 /* VideoPickerPlugin.swift */,
 				A1B2C3D4E5F6000000000200 /* LoopEnginePlugin.swift */,
+				A1B2C3D4E5F6000000000300 /* TipJarPlugin.swift */,
+				A1B2C3D4E5F6000000000302 /* Frangellboom.storekit */,
 				A1B2C3D4E5F6000000000104 /* PrivacyInfo.xcprivacy */,
 				A1B2C3D4E5F6000000000106 /* InfoPlist.strings */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -133,6 +138,11 @@
 						DevelopmentTeam = 9S78N8546T;
 						LastSwiftMigration = 1100;
 						ProvisioningStyle = Automatic;
+						SystemCapabilities = {
+							com.apple.InAppPurchase = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -187,6 +197,7 @@
 				A1B2C3D4E5F6000000000101 /* KeepAwakePlugin.swift in Sources */,
 				A1B2C3D4E5F6000000000203 /* VideoPickerPlugin.swift in Sources */,
 				A1B2C3D4E5F6000000000201 /* LoopEnginePlugin.swift in Sources */,
+				A1B2C3D4E5F6000000000301 /* TipJarPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

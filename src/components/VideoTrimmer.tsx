@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { t } from "../lib/i18n";
+import { useT } from "../lib/i18n";
 
 interface VideoTrimmerProps {
   videoUrl: string;
@@ -18,6 +18,7 @@ export function VideoTrimmer({
   onStartChange,
   onDurationChange,
 }: VideoTrimmerProps) {
+  const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const dragRef = useRef<{ pointerId: number; offsetStart: number } | null>(null);

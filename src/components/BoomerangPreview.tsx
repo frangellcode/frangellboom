@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { t } from "../lib/i18n";
+import { useT } from "../lib/i18n";
 import { useBoomerangPreview } from "../hooks/useBoomerangPreview";
 import type { Mode, Speed } from "../lib/boomerang";
 
@@ -12,6 +12,7 @@ interface BoomerangPreviewProps {
 }
 
 export function BoomerangPreview({ videoUrl, start, duration, speed, mode }: BoomerangPreviewProps) {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(true);
 

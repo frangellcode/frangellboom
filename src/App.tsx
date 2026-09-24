@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { t } from "./lib/i18n";
+import { toggleLanguage, useT } from "./lib/i18n";
+import { SupportFooter } from "./components/SupportFooter";
 import { VideoUploader } from "./components/VideoUploader";
 import { BoomerangMark } from "./components/BoomerangMark";
 import { VideoTrimmer } from "./components/VideoTrimmer";
@@ -29,6 +30,7 @@ const MAX_SEGMENT = 2;
 const OVERLAY_LEAVE_MS = 280;
 
 function App() {
+  const t = useT();
   const [step, setStep] = useState<Step>("upload");
   const [source, setSource] = useState<VideoSource | null>(null);
   const videoUrl = source?.url ?? null;
@@ -40,7 +42,6 @@ function App() {
   const [resolution, setResolution] = useState<Resolution>("original");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [processingLabel, setProcessingLabel] = useState(t.preparing);
   const [result, setResult] = useState<LoopResult | null>(null);
   const [previewClipUrl, setPreviewClipUrl] = useState<string | null>(null);
   const [preparingPreview, setPreparingPreview] = useState(false);
@@ -126,7 +127,6 @@ function App() {
     setOverlayLeaving(false);
     requestWakeLock();
     try {
-      setProcessingLabel(t.creating);
       const options = { start, duration: clampedSegmentDuration, loops, resolution, speed: effectiveSpeed, mode };
       if (isNativeApp) {
         const { webPath, uri } = await createLoopNatively(source, options, setProgress);
@@ -151,7 +151,7 @@ function App() {
       if (!isNativeApp) resetFFmpeg().catch(() => {});
       releaseWakeLock();
     }
-  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode]);
+  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t]);
 
   const handleGoToAdjust = useCallback(async () => {
     if (!source) return;
@@ -190,12 +190,16 @@ function App() {
           <h1 className="app__title">Frangellboom</h1>
           <p className="app__tagline">{t.tagline}</p>
         </div>
+        <button type="button" className="app__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
+          {t.langToggle}
+        </button>
       </header>
 
       <main className="app__main">
         {step === "upload" && (
           <div className="upload-screen">
             <VideoUploader onSelect={handleSelect} error={error} />
+            <SupportFooter />
           </div>
         )}
 
@@ -293,7 +297,7 @@ function App() {
 
         {step === "processing" && (
           <div className={`app__overlay${overlayLeaving ? " app__overlay--leaving" : ""}`}>
-            <ProcessingOverlay progress={progress} label={processingLabel} />
+            <ProcessingOverlay progress={progress} label={t.creating} />
           </div>
         )}
 

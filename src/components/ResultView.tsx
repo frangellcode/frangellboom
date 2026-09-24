@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { t } from "../lib/i18n";
+import { useT } from "../lib/i18n";
 import { Confetti } from "./Confetti";
 import { isNativeApp } from "../lib/native";
 import { shareVideoNatively } from "../lib/nativeSave";
@@ -19,6 +19,7 @@ interface ResultViewProps {
 const LEAVE_MS = 250;
 
 export function ResultView({ result, onReset }: ResultViewProps) {
+  const t = useT();
   // Create and revoke the object URL inside the same effect (rather than a
   // useMemo + separate cleanup effect) so React StrictMode's dev-only
   // mount→cleanup→remount doesn't revoke a URL that never gets recreated —

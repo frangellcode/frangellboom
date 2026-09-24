@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { t } from "../lib/i18n";
+import { useT } from "../lib/i18n";
 import { BoomerangMark } from "./BoomerangMark";
 
 interface ProcessingOverlayProps {
@@ -7,15 +7,14 @@ interface ProcessingOverlayProps {
   label: string;
 }
 
-const FLAVOR_TEXT = t.flavor;
-
 export function ProcessingOverlay({ progress, label }: ProcessingOverlayProps) {
+  const t = useT();
   const pct = Math.round(progress * 100);
   const [flavorIndex, setFlavorIndex] = useState(0);
 
   useEffect(() => {
     const id = setInterval(() => {
-      setFlavorIndex((i) => (i + 1) % FLAVOR_TEXT.length);
+      setFlavorIndex((i) => (i + 1) % t.flavor.length);
     }, 1800);
     return () => clearInterval(id);
   }, []);
@@ -28,7 +27,7 @@ export function ProcessingOverlay({ progress, label }: ProcessingOverlayProps) {
         </div>
       </div>
       <p className="processing__label">{label}</p>
-      <p className="processing__flavor">{FLAVOR_TEXT[flavorIndex]}</p>
+      <p className="processing__flavor">{t.flavor[flavorIndex]}</p>
       <div className="processing__bar">
         <div className="processing__bar-fill" style={{ width: `${pct}%` }} />
       </div>
