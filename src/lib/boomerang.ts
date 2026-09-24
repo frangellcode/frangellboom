@@ -1,5 +1,6 @@
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
+import type { VideoSource } from "./videoSource";
 import { EASE_ZONES, FREEZE_HOLD_SECONDS, PULSE_PULLBACK, forwardDuration, type Mode } from "./boomerangMath";
 
 export type Resolution = "original" | "1440" | "1080" | "720" | "480";
@@ -57,11 +58,11 @@ function progressWeights(kinds: StepKind[]): number[] {
 
 export async function createBoomerang(
   ffmpeg: FFmpeg,
-  inputFile: File,
+  input: VideoSource,
   { start, duration, loops, resolution, speed, mode, onProgress }: BoomerangOptions,
 ): Promise<Blob> {
-  const inputName = "input" + extOf(inputFile.name);
-  await ffmpeg.writeFile(inputName, await fetchFile(inputFile));
+  const inputName = "input" + extOf(input.name);
+  await ffmpeg.writeFile(inputName, await fetchFile(input.data));
 
   const chunkSeconds = REVERSE_CHUNK_SECONDS[resolution];
   const finalSegmentDuration = forwardDuration(mode, speed, duration);

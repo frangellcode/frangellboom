@@ -1,36 +1,41 @@
-# frangellboom 🪃
+# Frangellboom
 
-Crea boomerangs desde tus propios videos, en la calidad que quieras — sin el límite de 720p de Instagram.
+Crea bucles de ida y vuelta desde tus propios videos, en la calidad que quieras.
+
+**🔗 [Probarlo en vivo](https://frangellcode.github.io/frangellboom/)** · también como app de iPhone.
 
 ## Cómo funciona
 
-1. Importá un video (grabado con la cámara de tu dispositivo).
-2. Elegí el tramo que querés convertir en boomerang (hasta 2 segundos).
-3. Ajustá velocidad, modo (clásico o "ease"), repeticiones y calidad de salida — con vista previa en vivo.
-4. Exportá y descargá tu boomerang.
+1. Importa un video (grabado con la cámara de tu dispositivo).
+2. Elige el tramo que quieres convertir en bucle (hasta 2 segundos).
+3. Ajusta modo, velocidad y calidad de salida, con vista previa en vivo.
+4. Exporta y guarda tu bucle.
 
-Todo el procesamiento de video pasa **dentro de tu navegador** (usando [ffmpeg.wasm](https://ffmpegwasm.netlify.app/)): tu video nunca se sube a ningún servidor. La app no tiene backend.
+Todo el procesamiento pasa **en tu dispositivo**: tu video nunca se sube a ningún servidor y la app no tiene backend.
 
-Es instalable como PWA en Android y iPhone, y funciona sin conexión una vez instalada.
+- **Web / PWA:** el video se procesa en el navegador con [ffmpeg.wasm](https://ffmpegwasm.netlify.app/). Se puede instalar y funciona sin conexión una vez instalada.
+- **App de iOS** (`ios/`, Capacitor 8): el video se procesa con AVFoundation, usando el codificador de video del propio iPhone. Mantiene la resolución, los fps y el HDR del original. Guía de publicación: [docs/APP_STORE.md](docs/APP_STORE.md).
 
 ## Desarrollo
 
 ```sh
 npm install
-npm run dev
+npm run dev        # web en http://localhost:5174
+npm run ios        # compila, sincroniza y abre Frangellboom.xcworkspace en Xcode
 ```
 
 ## Build
 
 ```sh
-npm run build
+npm run build      # web → dist/ (sitio 100% estático)
+npm run build:ios  # el paquete que va dentro de la app de iOS (sin ffmpeg ni service worker)
 ```
 
-Genera un sitio 100% estático en `dist/` — se puede servir desde cualquier hosting estático (ver `deploy/nginx.conf.example` para una configuración de referencia con headers de seguridad).
+Ver `deploy/nginx.conf.example` para servir la web con headers de seguridad.
 
 ## Stack
 
-React · TypeScript · Vite · ffmpeg.wasm
+React · TypeScript · Vite · ffmpeg.wasm (web) · Capacitor + AVFoundation (iOS)
 
 ## Licencia
 

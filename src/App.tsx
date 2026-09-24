@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toggleLanguage, useLanguage, useT } from "./lib/i18n";
+import { FadeText } from "./components/FadeText";
+import { SupportFooter } from "./components/SupportFooter";
 import { VideoUploader } from "./components/VideoUploader";
 import { BoomerangMark } from "./components/BoomerangMark";
 import { VideoTrimmer } from "./components/VideoTrimmer";
 import { BoomerangPreview } from "./components/BoomerangPreview";
 import { BoomerangControls } from "./components/BoomerangControls";
 import { ProcessingOverlay } from "./components/ProcessingOverlay";
-import { ResultView } from "./components/ResultView";
+import { ResultView, type LoopResult } from "./components/ResultView";
 import { getFFmpeg, withFFmpeg, resetFFmpeg } from "./lib/ffmpegClient";
 import { createBoomerang, type Resolution, type Speed, type Mode } from "./lib/boomerang";
 import { extractPreviewClip } from "./lib/previewClip";
 import { totalBoomerangDuration, deriveLoops } from "./lib/boomerangMath";
 import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
+import type { VideoSource } from "./lib/videoSource";
+import { isNativeApp } from "./lib/native";
+import { createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
 import "./App.css";
 
 type Step = "upload" | "trim" | "adjust" | "processing" | "result";
@@ -25,9 +31,11 @@ const MAX_SEGMENT = 2;
 const OVERLAY_LEAVE_MS = 280;
 
 function App() {
+  const t = useT();
+  const lang = useLanguage();
   const [step, setStep] = useState<Step>("upload");
-  const [file, setFile] = useState<File | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [source, setSource] = useState<VideoSource | null>(null);
+  const videoUrl = source?.url ?? null;
   const [duration, setDuration] = useState(0);
   const [start, setStart] = useState(0);
   const [segmentDuration, setSegmentDuration] = useState(DEFAULT_SEGMENT);
@@ -36,17 +44,17 @@ function App() {
   const [resolution, setResolution] = useState<Resolution>("original");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [processingLabel, setProcessingLabel] = useState("Preparando…");
-  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
+  const [result, setResult] = useState<LoopResult | null>(null);
   const [previewClipUrl, setPreviewClipUrl] = useState<string | null>(null);
   const [preparingPreview, setPreparingPreview] = useState(false);
   const [overlayLeaving, setOverlayLeaving] = useState(false);
   const ffmpegPreload = useRef(false);
 
   // Kick off the (large) ffmpeg-core download as soon as the user lands,
-  // so it's likely ready by the time they hit "Crear boomerang".
+  // so it's likely ready by the time they hit "Crear boomerang". The iOS app
+  // never loads ffmpeg: it builds loops natively.
   useEffect(() => {
-    if (ffmpegPreload.current) return;
+    if (isNativeApp || ffmpegPreload.current) return;
     ffmpegPreload.current = true;
     getFFmpeg().catch(() => {
       /* swallow — a real error will surface again when processing starts */
@@ -66,18 +74,17 @@ function App() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [step]);
 
-  const handleSelect = useCallback((selected: File) => {
+  const handleSelect = useCallback((selected: VideoSource) => {
     setError(null);
-    setFile(selected);
+    setSource((prev) => {
+      if (prev) releaseSource(prev);
+      return selected;
+    });
     setDuration(0);
     setStart(0);
     setSegmentDuration(DEFAULT_SEGMENT);
-    setVideoUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(selected);
-    });
     setPreviewClipUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return null;
     });
     setStep("trim");
@@ -85,16 +92,15 @@ function App() {
 
   const handleReset = useCallback(() => {
     setStep("upload");
-    setFile(null);
-    setResultBlob(null);
-    setError(null);
-    setProgress(0);
-    setVideoUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
+    setSource((prev) => {
+      if (prev) releaseSource(prev);
       return null;
     });
+    setResult(null);
+    setError(null);
+    setProgress(0);
     setPreviewClipUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return null;
     });
   }, []);
@@ -111,63 +117,57 @@ function App() {
   // fixed target total duration per mode/speed (Instagram-style — normal
   // vs. slow motion each have one "right" length, not a range to pick from).
   const loops = useMemo(
-    () => deriveLoops(mode, effectiveSpeed, clampedSegmentDuration),
+    () => deriveLoops(mode, effectiveSpeed, clampedSegmentDuration, isNativeApp),
     [mode, effectiveSpeed, clampedSegmentDuration],
   );
 
   const handleCreate = useCallback(async () => {
-    if (!file) return;
+    if (!source) return;
     setStep("processing");
     setProgress(0);
     setError(null);
     setOverlayLeaving(false);
     requestWakeLock();
     try {
-      setProcessingLabel("Creando tu boomerang…");
-      const blob = await withFFmpeg((ffmpeg) =>
-        createBoomerang(ffmpeg, file, {
-          start,
-          duration: clampedSegmentDuration,
-          loops,
-          resolution,
-          speed: effectiveSpeed,
-          mode,
-          onProgress: setProgress,
-        }),
-      );
-      setResultBlob(blob);
+      const options = { start, duration: clampedSegmentDuration, loops, resolution, speed: effectiveSpeed, mode };
+      if (isNativeApp) {
+        const { webPath, uri } = await createLoopNatively(source, options, setProgress);
+        setResult({ url: webPath, uri });
+      } else {
+        const blob = await withFFmpeg((ffmpeg) => createBoomerang(ffmpeg, source, { ...options, onProgress: setProgress }));
+        setResult({ blob });
+      }
       setOverlayLeaving(true);
       await new Promise((resolve) => window.setTimeout(resolve, OVERLAY_LEAVE_MS));
       setStep("result");
     } catch (err) {
       console.error(err);
-      setError("No se pudo procesar el video. Probá con un clip más corto o recargá la página.");
+      setError(t.processFailed);
       setStep("adjust");
     } finally {
-      // Exporting is by far the heaviest thing ffmpeg does here (especially
+      // (Web only.) Exporting is by far the heaviest thing ffmpeg does here (especially
       // with chunked reverses at 2K/Original), so its memory footprint is
       // what eventually trips the "memory access out of bounds" crash after
       // a few runs. Starting the next export from a freshly-loaded instance
       // — win or lose — keeps that from ever accumulating that far.
-      resetFFmpeg().catch(() => {});
+      if (!isNativeApp) resetFFmpeg().catch(() => {});
       releaseWakeLock();
     }
-  }, [file, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode]);
+  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t]);
 
   const handleGoToAdjust = useCallback(async () => {
-    if (!file) return;
+    if (!source) return;
     setPreparingPreview(true);
     setError(null);
     try {
-      const clip = await withFFmpeg((ffmpeg) =>
-        extractPreviewClip(ffmpeg, file, {
-          start,
-          duration: clampedSegmentDuration,
-        }),
-      );
+      const clipUrl = isNativeApp
+        ? await createPreviewNatively(source, start, clampedSegmentDuration)
+        : URL.createObjectURL(
+            await withFFmpeg((ffmpeg) => extractPreviewClip(ffmpeg, source, { start, duration: clampedSegmentDuration })),
+          );
       setPreviewClipUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(clip);
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return clipUrl;
       });
     } catch (err) {
       console.error(err);
@@ -177,7 +177,7 @@ function App() {
       setPreparingPreview(false);
       setStep("adjust");
     }
-  }, [file, start, clampedSegmentDuration]);
+  }, [source, start, clampedSegmentDuration]);
 
   const totalDuration = useMemo(
     () => totalBoomerangDuration(mode, effectiveSpeed, clampedSegmentDuration, loops),
@@ -189,15 +189,19 @@ function App() {
       <header className="app__header">
         <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="app__logo" width="36" height="36" />
         <div>
-          <h1 className="app__title">frangellboom</h1>
-          <p className="app__tagline">boomerangs en alta calidad, a tu manera</p>
+          <h1 className="app__title">Frangellboom</h1>
+          <p className="app__tagline"><FadeText value={t.tagline} trigger={lang} /></p>
         </div>
+        <button type="button" className="app__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
+          <FadeText value={t.langToggle} trigger={lang} />
+        </button>
       </header>
 
       <main className="app__main">
         {step === "upload" && (
           <div className="upload-screen">
             <VideoUploader onSelect={handleSelect} error={error} />
+            <SupportFooter />
           </div>
         )}
 
@@ -216,7 +220,7 @@ function App() {
               <div className="controls controls--single">
                 <div className="controls__row">
                   <label className="controls__label" htmlFor="segment-duration">
-                    <span>Duración del video para boomerang</span>
+                    <span><FadeText value={t.segmentLength} trigger={lang} /></span>
                     <span className="controls__value">{clampedSegmentDuration.toFixed(1)}s</span>
                   </label>
                   <input
@@ -233,7 +237,7 @@ function App() {
 
               <div className="editor__actions">
                 <button type="button" className="btn btn--ghost" onClick={handleReset}>
-                  Volver atrás
+                  <FadeText value={t.back} trigger={lang} />
                 </button>
                 <button
                   type="button"
@@ -241,7 +245,7 @@ function App() {
                   onClick={handleGoToAdjust}
                   disabled={duration === 0 || preparingPreview}
                 >
-                  {preparingPreview ? "Preparando…" : "Siguiente →"}
+                  {preparingPreview ? t.preparing : t.next}
                 </button>
               </div>
             </div>
@@ -260,7 +264,7 @@ function App() {
               />
 
               <p className="total-duration">
-                Tramo: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · Duración total:{" "}
+                <FadeText value={t.segment} trigger={lang} />: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · <FadeText value={t.totalLength} trigger={lang} />:{" "}
                 <strong>{totalDuration.toFixed(1)}s</strong>
               </p>
 
@@ -277,7 +281,7 @@ function App() {
 
               <div className="editor__actions">
                 <button type="button" className="btn btn--ghost" onClick={() => setStep("trim")}>
-                  ← Recortar
+                  <FadeText value={t.trimBack} trigger={lang} />
                 </button>
                 <button
                   type="button"
@@ -286,7 +290,7 @@ function App() {
                   disabled={step === "processing"}
                 >
                   <BoomerangMark className="btn__mark" />
-                  Crear boomerang
+                  <FadeText value={t.create} trigger={lang} />
                 </button>
               </div>
             </div>
@@ -295,18 +299,24 @@ function App() {
 
         {step === "processing" && (
           <div className={`app__overlay${overlayLeaving ? " app__overlay--leaving" : ""}`}>
-            <ProcessingOverlay progress={progress} label={processingLabel} />
+            <ProcessingOverlay progress={progress} label={t.creating} />
           </div>
         )}
 
-        {step === "result" && resultBlob && (
+        {step === "result" && result && (
           <div className="result-screen">
-            <ResultView blob={resultBlob} onReset={handleReset} />
+            <ResultView result={result} onReset={handleReset} />
           </div>
         )}
       </main>
     </div>
   );
+}
+
+/** A web-picked video is played through an object URL that has to be freed;
+ *  a natively picked one is a plain file URL. */
+function releaseSource(source: VideoSource) {
+  if (source.url.startsWith("blob:")) URL.revokeObjectURL(source.url);
 }
 
 export default App;

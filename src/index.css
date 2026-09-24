@@ -157,7 +157,8 @@ select {
   color: inherit;
 }
 
-button {
+button,
+a {
   -webkit-tap-highlight-color: transparent;
 }
 

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useLanguage, useT } from "../lib/i18n";
+import { FadeText } from "./FadeText";
 
 interface VideoTrimmerProps {
   videoUrl: string;
@@ -17,6 +19,8 @@ export function VideoTrimmer({
   onStartChange,
   onDurationChange,
 }: VideoTrimmerProps) {
+  const t = useT();
+  const lang = useLanguage();
   const trackRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const dragRef = useRef<{ pointerId: number; offsetStart: number } | null>(null);
@@ -82,8 +86,19 @@ export function VideoTrimmer({
         video.currentTime = startRef.current;
       }
     };
+    // With the window at the very end of the clip, the video reaches its own
+    // end before timeupdate ever reports the window's end — and a video that
+    // has ended stays paused. Loop it back by hand.
+    const handleEnded = () => {
+      video.currentTime = startRef.current;
+      video.play().catch(() => {});
+    };
     video.addEventListener("timeupdate", handleTimeUpdate);
-    return () => video.removeEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("ended", handleEnded);
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("ended", handleEnded);
+    };
   }, []);
 
   useEffect(() => {
@@ -124,7 +139,7 @@ export function VideoTrimmer({
       </div>
       <div className="trimmer__labels">
         <span>{formatTime(start)}</span>
-        <span>{segmentDuration.toFixed(1)}s seleccionados</span>
+        <span><FadeText value={t.secondsSelected(segmentDuration.toFixed(1))} trigger={lang} /></span>
         <span>{formatTime(duration)}</span>
       </div>
     </div>

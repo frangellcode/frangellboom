@@ -1,29 +1,54 @@
 import { useCallback, useRef, useState } from "react";
+import { useLanguage, useT } from "../lib/i18n";
+import { FadeText } from "./FadeText";
+import { isNativeApp } from "../lib/native";
+import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
+import type { VideoSource } from "../lib/videoSource";
 
 interface VideoUploaderProps {
-  onSelect: (file: File) => void;
+  onSelect: (source: VideoSource) => void;
   error?: string | null;
 }
 
 export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
+  const t = useT();
+  const lang = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
       const file = files?.[0];
-      if (file && file.type.startsWith("video/")) {
-        onSelect(file);
+      if (!file || !file.type.startsWith("video/")) return;
+      if (isNativeApp) {
+        importFileNatively(file)
+          .then(onSelect)
+          .catch((err) => console.error(err));
+        return;
       }
+      onSelect({ name: file.name, url: URL.createObjectURL(file), data: file });
     },
     [onSelect],
   );
+
+  // The iOS app opens the system picker instead of an <input type="file">:
+  // it shows only videos, and hands back the original file as it sits in
+  // Photos instead of a re-compressed copy.
+  const openPicker = useCallback(() => {
+    if (!isNativeApp) {
+      inputRef.current?.click();
+      return;
+    }
+    pickVideoNatively()
+      .then((source) => source && onSelect(source))
+      .catch((err) => console.error(err));
+  }, [onSelect]);
 
   return (
     <div className="uploader-group">
       <div
         className={`uploader${dragging ? " uploader--dragging" : ""}`}
-        onClick={() => inputRef.current?.click()}
+        onClick={openPicker}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -37,7 +62,7 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+          if (e.key === "Enter" || e.key === " ") openPicker();
         }}
       >
         <input
@@ -48,15 +73,15 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
           onChange={(e) => handleFiles(e.target.files)}
         />
         <div className="uploader__icon">🎥</div>
-        <p className="uploader__title">Importa tu video</p>
-        <p className="uploader__hint">Arrastra un clip aquí o toca para elegirlo.</p>
+        <p className="uploader__title"><FadeText value={t.importTitle} trigger={lang} /></p>
+        <p className="uploader__hint"><FadeText value={t.importHint} trigger={lang} /></p>
         {error && <p className="uploader__error">{error}</p>}
       </div>
 
       <div className="uploader__badges">
-        <span className="badge">100% en tu dispositivo</span>
+        <span className="badge"><FadeText value={t.badgeOnDevice} trigger={lang} /></span>
         <span className="uploader__badges-dot" aria-hidden="true" />
-        <span className="badge">Sin límites de calidad</span>
+        <span className="badge"><FadeText value={t.badgeQuality} trigger={lang} /></span>
       </div>
     </div>
   );
