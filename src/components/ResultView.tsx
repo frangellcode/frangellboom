@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { t } from "../lib/i18n";
 import { Confetti } from "./Confetti";
 import { isNativeApp } from "../lib/native";
 import { shareVideoNatively } from "../lib/nativeSave";
@@ -53,23 +54,23 @@ export function ResultView({ result, onReset }: ResultViewProps) {
   return (
     <div className={`result${leaving ? " result--leaving" : ""}`}>
       <Confetti />
-      <p className="result__headline">¡Tu boomerang está listo!</p>
+      <p className="result__headline">{t.ready}</p>
       <video src={url} className="result__video" autoPlay loop muted playsInline controls />
       <div className="result__actions">
         {isNativeApp ? (
           <button type="button" className="btn btn--primary" onClick={handleNativeSave}>
-            Guardar o compartir
+            {t.save}
           </button>
         ) : (
           <a className="btn btn--primary" href={url} download="frangellboom.mp4">
-            Descargar
+            {t.download}
           </a>
         )}
         <button type="button" className="btn btn--ghost" onClick={handleReset}>
-          Crear otro
+          {t.another}
         </button>
       </div>
-      {saveFailed && <p className="app__error">No se pudo guardar el video. Revisa que tengas espacio libre e inténtalo de nuevo.</p>}
+      {saveFailed && <p className="app__error">{t.saveFailed}</p>}
     </div>
   );
 }

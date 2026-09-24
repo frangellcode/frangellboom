@@ -57,9 +57,9 @@ export default defineConfig(({ mode }) => {
         injectRegister: false,
         includeAssets: ["favicon.svg", "apple-touch-icon.png"],
         manifest: {
-          name: "frangellboom",
-          short_name: "frangellboom",
-          description: "Crea boomerangs a partir de tus propios videos, sin límites de Instagram.",
+          name: "Frangellboom",
+          short_name: "Frangellboom",
+          description: "Crea bucles de ida y vuelta a partir de tus propios videos, en la calidad que quieras.",
           lang: "es",
           theme_color: "#0b0b10",
           background_color: "#0b0b10",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { t } from "../lib/i18n";
 import { BoomerangMark } from "./BoomerangMark";
 
 interface ProcessingOverlayProps {
@@ -6,12 +7,7 @@ interface ProcessingOverlayProps {
   label: string;
 }
 
-const FLAVOR_TEXT = [
-  "Dándole la vuelta a los píxeles…",
-  "Afinando el ida y vuelta…",
-  "Puliendo cada cuadro…",
-  "Ya casi vuela",
-];
+const FLAVOR_TEXT = t.flavor;
 
 export function ProcessingOverlay({ progress, label }: ProcessingOverlayProps) {
   const pct = Math.round(progress * 100);

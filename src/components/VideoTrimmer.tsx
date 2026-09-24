@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { t } from "../lib/i18n";
 
 interface VideoTrimmerProps {
   videoUrl: string;
@@ -124,7 +125,7 @@ export function VideoTrimmer({
       </div>
       <div className="trimmer__labels">
         <span>{formatTime(start)}</span>
-        <span>{segmentDuration.toFixed(1)}s seleccionados</span>
+        <span>{t.secondsSelected(segmentDuration.toFixed(1))}</span>
         <span>{formatTime(duration)}</span>
       </div>
     </div>

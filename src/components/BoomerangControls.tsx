@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { t } from "../lib/i18n";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
 
 type AccentStyle = CSSProperties & { "--row-accent"?: string };
@@ -13,11 +14,11 @@ interface BoomerangControlsProps {
 }
 
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
-  { value: "classic", label: "Clásico" },
-  { value: "ease", label: "Ease" },
-  { value: "freeze", label: "Freeze" },
-  { value: "pulse", label: "Pulso" },
-  { value: "zoom", label: "Zoom" },
+  { value: "classic", label: t.modes.classic },
+  { value: "ease", label: t.modes.ease },
+  { value: "freeze", label: t.modes.freeze },
+  { value: "pulse", label: t.modes.pulse },
+  { value: "zoom", label: t.modes.zoom },
 ];
 
 // Only "classic" exposes a speed picker (see App.tsx) — every other mode has
@@ -47,12 +48,12 @@ export function BoomerangControls({
   return (
     <div className="controls">
       <div className="controls__header">
-        <span className="controls__heading">Ajustes</span>
+        <span className="controls__heading">{t.settings}</span>
       </div>
 
       <div className="controls__row" style={{ "--row-accent": "var(--accent)" } as AccentStyle}>
         <span className="controls__label">
-          <span>Modo</span>
+          <span>{t.mode}</span>
         </span>
         <div className="chips">
           {MODE_OPTIONS.map((opt) => (
@@ -72,7 +73,7 @@ export function BoomerangControls({
         <div className="controls__collapse-inner controls__collapse-inner--glow">
           <div className="controls__row" style={{ "--row-accent": "var(--accent-4)" } as AccentStyle}>
             <span className="controls__label">
-              <span>Velocidad</span>
+              <span>{t.speed}</span>
             </span>
             <div className="chips">
               {SPEED_OPTIONS.map((opt) => (
@@ -92,7 +93,7 @@ export function BoomerangControls({
 
       <div className="controls__row" style={{ "--row-accent": "var(--accent-2)" } as AccentStyle}>
         <span className="controls__label">
-          <span>Calidad de salida</span>
+          <span>{t.quality}</span>
         </span>
         <div className="chips">
           {RESOLUTION_OPTIONS.map((opt) => (

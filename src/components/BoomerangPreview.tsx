@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { t } from "../lib/i18n";
 import { useBoomerangPreview } from "../hooks/useBoomerangPreview";
 import type { Mode, Speed } from "../lib/boomerang";
 
@@ -19,12 +20,12 @@ export function BoomerangPreview({ videoUrl, start, duration, speed, mode }: Boo
   return (
     <div className="preview">
       <video ref={videoRef} src={videoUrl} className="preview__video" muted playsInline />
-      <span className="preview__live-badge">● EN VIVO</span>
+      <span className="preview__live-badge">{t.live}</span>
       <button
         type="button"
         className="preview__toggle"
         onClick={() => setPlaying((p) => !p)}
-        aria-label={playing ? "Pausar vista previa" : "Reproducir vista previa"}
+        aria-label={playing ? t.pausePreview : t.playPreview}
       >
         {playing ? "⏸" : "▶"}
       </button>

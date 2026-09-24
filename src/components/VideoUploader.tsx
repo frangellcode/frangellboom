@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { t } from "../lib/i18n";
 import { isNativeApp } from "../lib/native";
 import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
 import type { VideoSource } from "../lib/videoSource";
@@ -69,15 +70,15 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
           onChange={(e) => handleFiles(e.target.files)}
         />
         <div className="uploader__icon">🎥</div>
-        <p className="uploader__title">Importa tu video</p>
-        <p className="uploader__hint">Arrastra un clip aquí o toca para elegirlo.</p>
+        <p className="uploader__title">{t.importTitle}</p>
+        <p className="uploader__hint">{t.importHint}</p>
         {error && <p className="uploader__error">{error}</p>}
       </div>
 
       <div className="uploader__badges">
-        <span className="badge">100% en tu dispositivo</span>
+        <span className="badge">{t.badgeOnDevice}</span>
         <span className="uploader__badges-dot" aria-hidden="true" />
-        <span className="badge">Sin límites de calidad</span>
+        <span className="badge">{t.badgeQuality}</span>
       </div>
     </div>
   );

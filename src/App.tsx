@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { t } from "./lib/i18n";
 import { VideoUploader } from "./components/VideoUploader";
 import { BoomerangMark } from "./components/BoomerangMark";
 import { VideoTrimmer } from "./components/VideoTrimmer";
@@ -39,7 +40,7 @@ function App() {
   const [resolution, setResolution] = useState<Resolution>("original");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [processingLabel, setProcessingLabel] = useState("Preparando…");
+  const [processingLabel, setProcessingLabel] = useState(t.preparing);
   const [result, setResult] = useState<LoopResult | null>(null);
   const [previewClipUrl, setPreviewClipUrl] = useState<string | null>(null);
   const [preparingPreview, setPreparingPreview] = useState(false);
@@ -125,7 +126,7 @@ function App() {
     setOverlayLeaving(false);
     requestWakeLock();
     try {
-      setProcessingLabel("Creando tu boomerang…");
+      setProcessingLabel(t.creating);
       const options = { start, duration: clampedSegmentDuration, loops, resolution, speed: effectiveSpeed, mode };
       if (isNativeApp) {
         const { webPath, uri } = await createLoopNatively(source, options, setProgress);
@@ -139,7 +140,7 @@ function App() {
       setStep("result");
     } catch (err) {
       console.error(err);
-      setError("No se pudo procesar el video. Probá con un clip más corto o recargá la página.");
+      setError(t.processFailed);
       setStep("adjust");
     } finally {
       // (Web only.) Exporting is by far the heaviest thing ffmpeg does here (especially
@@ -186,8 +187,8 @@ function App() {
       <header className="app__header">
         <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="app__logo" width="36" height="36" />
         <div>
-          <h1 className="app__title">frangellboom</h1>
-          <p className="app__tagline">boomerangs en alta calidad, a tu manera</p>
+          <h1 className="app__title">Frangellboom</h1>
+          <p className="app__tagline">{t.tagline}</p>
         </div>
       </header>
 
@@ -213,7 +214,7 @@ function App() {
               <div className="controls controls--single">
                 <div className="controls__row">
                   <label className="controls__label" htmlFor="segment-duration">
-                    <span>Duración del video para boomerang</span>
+                    <span>{t.segmentLength}</span>
                     <span className="controls__value">{clampedSegmentDuration.toFixed(1)}s</span>
                   </label>
                   <input
@@ -230,7 +231,7 @@ function App() {
 
               <div className="editor__actions">
                 <button type="button" className="btn btn--ghost" onClick={handleReset}>
-                  Volver atrás
+                  {t.back}
                 </button>
                 <button
                   type="button"
@@ -238,7 +239,7 @@ function App() {
                   onClick={handleGoToAdjust}
                   disabled={duration === 0 || preparingPreview}
                 >
-                  {preparingPreview ? "Preparando…" : "Siguiente →"}
+                  {preparingPreview ? t.preparing : t.next}
                 </button>
               </div>
             </div>
@@ -257,7 +258,7 @@ function App() {
               />
 
               <p className="total-duration">
-                Tramo: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · Duración total:{" "}
+                {t.segment}: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · {t.totalLength}:{" "}
                 <strong>{totalDuration.toFixed(1)}s</strong>
               </p>
 
@@ -274,7 +275,7 @@ function App() {
 
               <div className="editor__actions">
                 <button type="button" className="btn btn--ghost" onClick={() => setStep("trim")}>
-                  ← Recortar
+                  {t.trimBack}
                 </button>
                 <button
                   type="button"
@@ -283,7 +284,7 @@ function App() {
                   disabled={step === "processing"}
                 >
                   <BoomerangMark className="btn__mark" />
-                  Crear boomerang
+                  {t.create}
                 </button>
               </div>
             </div>
