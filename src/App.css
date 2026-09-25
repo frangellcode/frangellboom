@@ -944,8 +944,15 @@
   }
 }
 
+/* The word's 0.85 line height leaves the tops of the glyphs outside each
+   letter's box, and WebKit clips a filtered element to its box — so while
+   the blur runs, every letter showed a flat cut along its top. The padding
+   gives the glyphs (and the blur) room; the negative margin keeps the
+   layout exactly where it was. */
 .poster__letter {
   display: inline-block;
+  padding: 0.25em 0.08em;
+  margin: -0.25em -0.08em;
 }
 
 .app--intro .poster__word {
