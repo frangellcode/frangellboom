@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: "dist",
   // The darker brand pink body falls back to (see index.css) — the webview
   // never flashes white behind the gradient while the bundle loads.
-  backgroundColor: "#991c3b",
+  backgroundColor: "#b84b30",
   ios: {
     // The Xcode project FILE has to stay App.xcodeproj (the Capacitor CLI looks
     // for that name), but its target and scheme are Frangellboom.
@@ -18,7 +18,7 @@ const config: CapacitorConfig = {
     // Only .app__main scrolls; without this the whole UI rubber-bands like a
     // web page, the tell-tale sign of a wrapped website.
     scrollEnabled: false,
-    backgroundColor: "#991c3b",
+    backgroundColor: "#b84b30",
   },
   // Live reload for development only (npm run ios:dev): the app loads the
   // Vite dev server on this Mac instead of its bundled files. Set only while

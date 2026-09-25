@@ -106,10 +106,10 @@ export function TipJarModal({ open, onClose }: TipJarModalProps) {
                 <strong>{phase.buying === product.id ? "…" : product.displayPrice}</strong>
               </button>
             ))}
-            {phase.note === "failed" && <p className="app__error">{t.tipJar.failed}</p>}
+            {phase.note === "failed" && <p className="error">{t.tipJar.failed}</p>}
           </div>
         )}
-        <button type="button" className="btn btn--primary tipjar__close" onClick={onClose} disabled={busy}>
+        <button type="button" className="pill pill--primary tipjar__close" onClick={onClose} disabled={busy}>
           {t.tipJar.close}
         </button>
       </div>

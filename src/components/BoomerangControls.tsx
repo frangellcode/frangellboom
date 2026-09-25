@@ -1,9 +1,7 @@
-import type { CSSProperties } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
 
-type AccentStyle = CSSProperties & { "--row-accent"?: string };
 
 interface BoomerangControlsProps {
   speed: Speed;
@@ -42,69 +40,63 @@ export function BoomerangControls({
 }: BoomerangControlsProps) {
   const t = useT();
   const lang = useLanguage();
+  const row = (label: string, chips: React.ReactNode) => (
+    <div className="controls__row">
+      <span className="controls__label">
+        <FadeText value={label} trigger={lang} />
+      </span>
+      <div className="chips">{chips}</div>
+    </div>
+  );
+
   return (
     <div className="controls">
-      <div className="controls__header">
-        <span className="controls__heading"><FadeText value={t.settings} trigger={lang} /></span>
-      </div>
+      {row(
+        t.mode,
+        MODES.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={`chip${mode === value ? " chip--active" : ""}`}
+            onClick={() => onModeChange(value)}
+          >
+            <FadeText value={t.modes[value]} trigger={lang} />
+          </button>
+        )),
+      )}
 
-      <div className="controls__row" style={{ "--row-accent": "var(--accent)" } as AccentStyle}>
-        <span className="controls__label">
-          <span><FadeText value={t.mode} trigger={lang} /></span>
-        </span>
-        <div className="chips">
-          {MODES.map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={`chip${mode === value ? " chip--active" : ""}`}
-              onClick={() => onModeChange(value)}
-            >
-              <FadeText value={t.modes[value]} trigger={lang} />
-            </button>
-          ))}
-        </div>
-      </div>
-
+      {/* Only "classic" has a speed; the row eases open and shut. */}
       <div className={`controls__collapse${mode === "classic" ? " controls__collapse--open" : ""}`}>
-        <div className="controls__collapse-inner controls__collapse-inner--glow">
-          <div className="controls__row" style={{ "--row-accent": "var(--accent-4)" } as AccentStyle}>
-            <span className="controls__label">
-              <span><FadeText value={t.speed} trigger={lang} /></span>
-            </span>
-            <div className="chips">
-              {SPEED_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`chip${speed === opt.value ? " chip--active" : ""}`}
-                  onClick={() => onSpeedChange(opt.value)}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="controls__collapse-inner">
+          {row(
+            t.speed,
+            SPEED_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`chip chip--mono${speed === opt.value ? " chip--active" : ""}`}
+                onClick={() => onSpeedChange(opt.value)}
+              >
+                {opt.label}
+              </button>
+            )),
+          )}
         </div>
       </div>
 
-      <div className="controls__row" style={{ "--row-accent": "var(--accent-2)" } as AccentStyle}>
-        <span className="controls__label">
-          <span><FadeText value={t.quality} trigger={lang} /></span>
-        </span>
-        <div className="chips">
-          {RESOLUTION_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={`chip${resolution === opt.value ? " chip--active" : ""}`}
-              onClick={() => onResolutionChange(opt.value)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {row(
+        t.quality,
+        RESOLUTION_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`chip chip--mono${resolution === opt.value ? " chip--active" : ""}`}
+            onClick={() => onResolutionChange(opt.value)}
+          >
+            {opt.label}
+          </button>
+        )),
+      )}
     </div>
   );
 }

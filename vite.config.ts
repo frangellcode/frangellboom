@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5174,
       strictPort: true,
+      // Xcode's build output (ios/App/build) holds copies of public/; without
+      // this every native build would reload the live-reload session.
+      watch: { ignored: ["**/ios/**"] },
     },
     plugins: [
       react(),
@@ -72,8 +75,8 @@ export default defineConfig(({ mode }) => {
           short_name: "Frangellboom",
           description: "Crea bucles de ida y vuelta a partir de tus propios videos, en la calidad que quieras.",
           lang: "es",
-          theme_color: "#0b0b10",
-          background_color: "#0b0b10",
+          theme_color: "#b84b30",
+          background_color: "#b84b30",
           display: "standalone",
           orientation: "portrait",
           start_url: "./",
@@ -89,7 +92,7 @@ export default defineConfig(({ mode }) => {
           // The ffmpeg-core wasm is ~30MB; raise the default 2MB precache limit
           // so it's cached for offline use instead of being skipped.
           maximumFileSizeToCacheInBytes: 40 * 1024 * 1024,
-          globPatterns: ["**/*.{js,css,html,svg,png,wasm}"],
+          globPatterns: ["**/*.{js,css,html,svg,png,wasm,woff2}"],
         },
       }),
     ],

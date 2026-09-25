@@ -3,7 +3,6 @@ import { toggleLanguage, useLanguage, useT } from "./lib/i18n";
 import { FadeText } from "./components/FadeText";
 import { SupportFooter } from "./components/SupportFooter";
 import { VideoUploader } from "./components/VideoUploader";
-import { BoomerangMark } from "./components/BoomerangMark";
 import { VideoTrimmer } from "./components/VideoTrimmer";
 import { BoomerangPreview } from "./components/BoomerangPreview";
 import { BoomerangControls } from "./components/BoomerangControls";
@@ -184,127 +183,125 @@ function App() {
     [mode, effectiveSpeed, clampedSegmentDuration, loops],
   );
 
+  const eyebrow = (text: string) => (
+    <p className="eyebrow">
+      <FadeText value={text} trigger={lang} />
+    </p>
+  );
+
   return (
-    <div className="app">
-      <header className="app__header">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="app__logo" width="36" height="36" />
-        <div>
-          <h1 className="app__title">Frangellboom</h1>
-          <p className="app__tagline"><FadeText value={t.tagline} trigger={lang} /></p>
-        </div>
-        <button type="button" className="app__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
-          <FadeText value={t.langToggle} trigger={lang} />
-        </button>
+    <div className={`app${step === "upload" ? " app--hero" : ""}`}>
+      <header className="bar">
+        <span className="bar__side" aria-hidden="true" />
+        <h1 className="bar__wordmark">Frangellboom</h1>
+        <span className="bar__side bar__side--end">
+          <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
+            <FadeText value={t.langToggle} trigger={lang} />
+          </button>
+        </span>
       </header>
 
       <main className="app__main">
         {step === "upload" && (
-          <div className="upload-screen">
+          <div className="screen hero" key="upload">
             <VideoUploader onSelect={handleSelect} error={error} />
             <SupportFooter />
           </div>
         )}
 
         {step === "trim" && videoUrl && (
-          <div className="trim-screen">
-            <div className="editor">
-              <VideoTrimmer
-                videoUrl={videoUrl}
-                duration={duration}
-                start={start}
-                segmentDuration={clampedSegmentDuration}
-                onStartChange={setStart}
-                onDurationChange={setDuration}
+          <div className="screen" key="trim">
+            {eyebrow(t.trimEyebrow)}
+            <VideoTrimmer
+              videoUrl={videoUrl}
+              duration={duration}
+              start={start}
+              segmentDuration={clampedSegmentDuration}
+              onStartChange={setStart}
+              onDurationChange={setDuration}
+            />
+
+            <div className="field">
+              <label className="field__label" htmlFor="segment-duration">
+                <span>
+                  <FadeText value={t.segmentLength} trigger={lang} />
+                </span>
+                <span className="mono">{clampedSegmentDuration.toFixed(1)}s</span>
+              </label>
+              <input
+                id="segment-duration"
+                className="range"
+                type="range"
+                min={MIN_SEGMENT}
+                max={Math.max(maxSegmentDuration, MIN_SEGMENT)}
+                step={0.1}
+                value={clampedSegmentDuration}
+                onChange={(e) => setSegmentDuration(Number(e.target.value))}
               />
+            </div>
 
-              <div className="controls controls--single">
-                <div className="controls__row">
-                  <label className="controls__label" htmlFor="segment-duration">
-                    <span><FadeText value={t.segmentLength} trigger={lang} /></span>
-                    <span className="controls__value">{clampedSegmentDuration.toFixed(1)}s</span>
-                  </label>
-                  <input
-                    id="segment-duration"
-                    type="range"
-                    min={MIN_SEGMENT}
-                    max={Math.max(maxSegmentDuration, MIN_SEGMENT)}
-                    step={0.1}
-                    value={clampedSegmentDuration}
-                    onChange={(e) => setSegmentDuration(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="editor__actions">
-                <button type="button" className="btn btn--ghost" onClick={handleReset}>
-                  <FadeText value={t.back} trigger={lang} />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={handleGoToAdjust}
-                  disabled={duration === 0 || preparingPreview}
-                >
-                  {preparingPreview ? t.preparing : t.next}
-                </button>
-              </div>
+            <div className="actions">
+              <button type="button" className="pill pill--quiet" onClick={handleReset}>
+                <FadeText value={t.back} trigger={lang} />
+              </button>
+              <button
+                type="button"
+                className="pill pill--primary"
+                onClick={handleGoToAdjust}
+                disabled={duration === 0 || preparingPreview}
+              >
+                <FadeText value={preparingPreview ? t.preparing : t.next} trigger={lang} />
+              </button>
             </div>
           </div>
         )}
 
         {(step === "adjust" || step === "processing") && videoUrl && (
-          <div className="adjust-screen">
-            <div className="editor">
-              <BoomerangPreview
-                videoUrl={previewClipUrl ?? videoUrl}
-                start={previewClipUrl ? 0 : start}
-                duration={clampedSegmentDuration}
-                speed={effectiveSpeed}
-                mode={mode}
-              />
+          <div className="screen" key="adjust">
+            {eyebrow(t.adjustEyebrow)}
+            <BoomerangPreview
+              videoUrl={previewClipUrl ?? videoUrl}
+              start={previewClipUrl ? 0 : start}
+              duration={clampedSegmentDuration}
+              speed={effectiveSpeed}
+              mode={mode}
+            />
 
-              <p className="total-duration">
-                <FadeText value={t.segment} trigger={lang} />: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · <FadeText value={t.totalLength} trigger={lang} />:{" "}
-                <strong>{totalDuration.toFixed(1)}s</strong>
-              </p>
+            <p className="meta mono">
+              <FadeText value={t.segment} trigger={lang} /> {clampedSegmentDuration.toFixed(1)}s ·{" "}
+              <FadeText value={t.totalLength} trigger={lang} /> {totalDuration.toFixed(1)}s
+            </p>
 
-              <BoomerangControls
-                speed={speed}
-                onSpeedChange={setSpeed}
-                mode={mode}
-                onModeChange={setMode}
-                resolution={resolution}
-                onResolutionChange={setResolution}
-              />
+            <BoomerangControls
+              speed={speed}
+              onSpeedChange={setSpeed}
+              mode={mode}
+              onModeChange={setMode}
+              resolution={resolution}
+              onResolutionChange={setResolution}
+            />
 
-              {error && <p className="app__error">{error}</p>}
+            {error && <p className="error">{error}</p>}
 
-              <div className="editor__actions">
-                <button type="button" className="btn btn--ghost" onClick={() => setStep("trim")}>
-                  <FadeText value={t.trimBack} trigger={lang} />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={handleCreate}
-                  disabled={step === "processing"}
-                >
-                  <BoomerangMark className="btn__mark" />
-                  <FadeText value={t.create} trigger={lang} />
-                </button>
-              </div>
+            <div className="actions">
+              <button type="button" className="pill pill--quiet" onClick={() => setStep("trim")}>
+                <FadeText value={t.trimBack} trigger={lang} />
+              </button>
+              <button type="button" className="pill pill--primary" onClick={handleCreate} disabled={step === "processing"}>
+                <FadeText value={t.create} trigger={lang} />
+              </button>
             </div>
           </div>
         )}
 
         {step === "processing" && (
-          <div className={`app__overlay${overlayLeaving ? " app__overlay--leaving" : ""}`}>
+          <div className={`overlay${overlayLeaving ? " overlay--leaving" : ""}`}>
             <ProcessingOverlay progress={progress} label={t.creating} />
           </div>
         )}
 
         {step === "result" && result && (
-          <div className="result-screen">
+          <div className="screen" key="result">
             <ResultView result={result} onReset={handleReset} />
           </div>
         )}

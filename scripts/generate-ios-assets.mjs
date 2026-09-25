@@ -2,14 +2,14 @@
 // uses. App Store Connect rejects an icon with an alpha channel, so the icon
 // is flattened onto an opaque background.
 import sharp from "sharp";
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 
 const ios = "ios/App/App/Assets.xcassets";
 
 await mkdir(`${ios}/AppIcon.appiconset`, { recursive: true });
 await sharp("design/icon-source.svg", { density: 1024 })
   .resize(1024, 1024)
-  .flatten({ background: "#ff2e63" })
+  .flatten({ background: "#b84b30" })
   .removeAlpha()
   .png()
   .toFile(`${ios}/AppIcon.appiconset/AppIcon-1024.png`);
@@ -25,10 +25,16 @@ await writeFile(
   ) + "\n",
 );
 
-// The launch screen shows the same gradient the PWA's splash screens do, so
-// the app opens straight into its own background.
+// The launch screen is the flat terracotta the app opens onto.
 await mkdir(`${ios}/Splash.imageset`, { recursive: true });
-await copyFile("public/splash/splash-440x956@3x.png", `${ios}/Splash.imageset/splash.png`);
+await sharp({ create: { width: 1320, height: 2868, channels: 3, background: "#b84b30" } })
+  .png()
+  .toFile(`${ios}/Splash.imageset/splash.png`);
+
+// The web app's icons, from the same source.
+for (const [file, size] of [["public/pwa-192.png", 192], ["public/pwa-512.png", 512], ["public/apple-touch-icon.png", 180], ["public/favicon-32.png", 32]]) {
+  await sharp("design/icon-source.svg", { density: 1024 }).resize(size, size).png().toFile(file);
+}
 await writeFile(
   `${ios}/Splash.imageset/Contents.json`,
   JSON.stringify(

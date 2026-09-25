@@ -137,7 +137,7 @@ export function VideoTrimmer({
           onPointerUp={handleWindowPointerUp}
         />
       </div>
-      <div className="trimmer__labels">
+      <div className="trimmer__labels mono">
         <span>{formatTime(start)}</span>
         <span><FadeText value={t.secondsSelected(segmentDuration.toFixed(1))} trigger={lang} /></span>
         <span>{formatTime(duration)}</span>

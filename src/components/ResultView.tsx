@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
-import { Confetti } from "./Confetti";
 import { isNativeApp } from "../lib/native";
 import { shareVideoNatively } from "../lib/nativeSave";
 
@@ -56,24 +55,29 @@ export function ResultView({ result, onReset }: ResultViewProps) {
 
   return (
     <div className={`result${leaving ? " result--leaving" : ""}`}>
-      <Confetti />
-      <p className="result__headline"><FadeText value={t.ready} trigger={lang} /></p>
-      <video src={url} className="result__video" autoPlay loop muted playsInline controls />
-      <div className="result__actions">
+      <p className="eyebrow">
+        <FadeText value={t.ready} trigger={lang} />
+      </p>
+      <video src={url} className="result__video" autoPlay loop muted playsInline />
+      <div className="actions actions--stacked">
         {isNativeApp ? (
-          <button type="button" className="btn btn--primary" onClick={handleNativeSave}>
+          <button type="button" className="pill pill--primary" onClick={handleNativeSave}>
             <FadeText value={t.save} trigger={lang} />
           </button>
         ) : (
-          <a className="btn btn--primary" href={url} download="frangellboom.mp4">
+          <a className="pill pill--primary" href={url} download="frangellboom.mp4">
             <FadeText value={t.download} trigger={lang} />
           </a>
         )}
-        <button type="button" className="btn btn--ghost" onClick={handleReset}>
+        <button type="button" className="link" onClick={handleReset}>
           <FadeText value={t.another} trigger={lang} />
         </button>
       </div>
-      {saveFailed && <p className="app__error"><FadeText value={t.saveFailed} trigger={lang} /></p>}
+      {saveFailed && (
+        <p className="error">
+          <FadeText value={t.saveFailed} trigger={lang} />
+        </p>
+      )}
     </div>
   );
 }
