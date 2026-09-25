@@ -68,6 +68,7 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
     private let recordButton = UIControl()
     private let ring = CAShapeLayer()
     private let dot = UIView()
+    private let spinner = UIActivityIndicatorView(style: .large)
     private let closeButton = UIButton(type: .system)
     private let flipButton = UIButton(type: .system)
     private let formatLabel = UILabel()
@@ -76,6 +77,8 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
     private var pressStarted: Date?
     private var recordingStarted: Date?
     private var tapMode = false
+    private var stopping = false
+    private var take = 0
     private var finished = false
 
     init(output: URL, maxDuration: Double, hint: String, completion: @escaping (URL?) -> Void) {
@@ -206,6 +209,12 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
         dot.frame = CGRect(x: 11, y: 11, width: 62, height: 62)
         recordButton.addSubview(dot)
 
+        spinner.color = .white
+        spinner.hidesWhenStopped = true
+        spinner.isUserInteractionEnabled = false
+        spinner.center = CGPoint(x: size / 2, y: size / 2)
+        recordButton.addSubview(spinner)
+
         recordButton.addTarget(self, action: #selector(pressDown), for: .touchDown)
         recordButton.addTarget(self, action: #selector(pressUp), for: [.touchUpInside, .touchUpOutside])
 
@@ -257,13 +266,13 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
     // Press starts recording right away. Letting go after a hold stops it; a
     // quick tap instead leaves it running until the next tap or the limit.
     @objc private func pressDown() {
+        guard !stopping, !finished else { return }
         if movieOutput.isRecording {
             if tapMode { stopRecording() }
             return
         }
-        guard !finished else { return }
         pressStarted = Date()
-        recordingStarted = Date()
+        recordingStarted = nil
         tapMode = false
         try? FileManager.default.removeItem(at: output)
         sessionQueue.async { self.movieOutput.startRecording(to: self.output, recordingDelegate: self) }
@@ -281,7 +290,43 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
     }
 
     private func stopRecording() {
+        showStopping()
         sessionQueue.async { if self.movieOutput.isRecording { self.movieOutput.stopRecording() } }
+    }
+
+    /// The moment recording ends — let go, tapped again, or the ring full —
+    /// the screen says so: a tap of haptics, the camera dims, and a spinner
+    /// takes the button while the file is written out and handed over.
+    /// Without it the live camera stayed up for another second or two and
+    /// looked like it was still recording.
+    private func showStopping() {
+        guard !stopping else { return }
+        stopping = true
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        ring.removeAllAnimations()
+        ring.strokeEnd = 0
+        spinner.startAnimating()
+        UIView.animate(withDuration: 0.2) {
+            self.dot.alpha = 0
+            self.dot.transform = .identity
+            self.dot.layer.cornerRadius = 31
+        }
+        let dim = CABasicAnimation(keyPath: "opacity")
+        dim.fromValue = previewLayer.opacity
+        dim.toValue = 0.35
+        dim.duration = 0.2
+        previewLayer.opacity = 0.35
+        previewLayer.add(dim, forKey: "dim")
+    }
+
+    /// Back to ready, for a clip too short to keep.
+    private func resetAfterStopping() {
+        stopping = false
+        spinner.stopAnimating()
+        previewLayer.removeAnimation(forKey: "dim")
+        previewLayer.opacity = 1
+        dot.alpha = 1
+        showRecording(false)
     }
 
     private func showRecording(_ recording: Bool) {
@@ -292,15 +337,25 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
             self.dot.layer.cornerRadius = recording ? 16 : 31
             self.hintLabel.alpha = recording ? 0 : 1
         }
-        ring.removeAllAnimations()
-        if recording {
-            let fill = CABasicAnimation(keyPath: "strokeEnd")
-            fill.fromValue = 0
-            fill.toValue = 1
-            fill.duration = maxDuration
-            fill.fillMode = .forwards
-            fill.isRemovedOnCompletion = false
-            ring.add(fill, forKey: "fill")
+        if !recording { ring.removeAllAnimations() }
+    }
+
+    /// The ring fills over exactly what's being recorded: it starts with the
+    /// first frame written, not the press (the camera takes a moment to get
+    /// going), and the clip is over the moment it's full.
+    private func startRing() {
+        let fill = CABasicAnimation(keyPath: "strokeEnd")
+        fill.fromValue = 0
+        fill.toValue = 1
+        fill.duration = maxDuration
+        fill.fillMode = .forwards
+        fill.isRemovedOnCompletion = false
+        ring.add(fill, forKey: "fill")
+        take += 1
+        let thisTake = take
+        DispatchQueue.main.asyncAfter(deadline: .now() + maxDuration) { [weak self] in
+            guard let self, self.take == thisTake, self.movieOutput.isRecording else { return }
+            self.showStopping()
         }
     }
 
@@ -321,17 +376,26 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
 
     // MARK: - AVCaptureFileOutputRecordingDelegate
 
+    func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
+        DispatchQueue.main.async {
+            guard !self.stopping else { return }
+            self.recordingStarted = Date()
+            self.startRing()
+        }
+    }
+
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         // Reaching maxRecordedDuration also "fails" with an error, but the
         // file is complete; only a clip with nothing in it is thrown away.
         let recorded = (error as NSError?)?.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool ?? (error == nil)
         let length = recordingStarted.map { Date().timeIntervalSince($0) } ?? 0
         DispatchQueue.main.async {
-            self.showRecording(false)
             if recorded, length >= 0.5 {
+                self.showStopping()
                 self.finish(outputFileURL)
             } else {
                 try? FileManager.default.removeItem(at: outputFileURL)
+                self.resetAfterStopping()
             }
         }
     }
