@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
-import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
+import { importFileNatively, pickVideoNatively, recordVideoNatively } from "../lib/nativeVideo";
 import type { VideoSource } from "../lib/videoSource";
 import { Headline } from "./Headline";
 
@@ -16,6 +16,7 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
   const lang = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
@@ -44,6 +45,16 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
       .then((source) => source && onSelect(source))
       .catch((err) => console.error(err));
   }, [onSelect]);
+
+  const openCamera = useCallback(() => {
+    setCameraError(false);
+    recordVideoNatively(t.recordHint)
+      .then((source) => source && onSelect(source))
+      .catch((err) => {
+        if ((err as { code?: string }).code === "DENIED") setCameraError(true);
+        else console.error(err);
+      });
+  }, [onSelect, t.recordHint]);
 
   return (
     <div
@@ -80,6 +91,12 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
       <button type="button" className="button button--light" onClick={openPicker}>
         <FadeText value={t.importCta} trigger={lang} />
       </button>
+      {isNativeApp && (
+        <button type="button" className="button button--sky" onClick={openCamera}>
+          <FadeText value={t.recordCta} trigger={lang} />
+        </button>
+      )}
+      {cameraError && <p className="uploader__error">{t.cameraDenied}</p>}
       {!isNativeApp && (
         <p className="uploader__hint">
           <FadeText value={t.dropHint} trigger={lang} />

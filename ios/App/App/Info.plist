@@ -33,6 +33,8 @@
 	<string>public.app-category.photography</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Frangellboom uses the camera only when you choose to record a moment to turn into a loop. Videos never leave your device.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Frangellboom saves the loops you create to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

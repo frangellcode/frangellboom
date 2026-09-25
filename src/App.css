@@ -340,6 +340,22 @@
   width: 100%;
 }
 
+/* Second action on the sky: a ghost button that stays readable on it. */
+.button--sky {
+  margin-top: -16px;
+  border-color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--ink);
+}
+
+.app--intro .uploader > .button--sky {
+  animation: rise 0.8s 1.4s ease-out backwards;
+}
+
+.uploader__error {
+  color: var(--ink);
+}
+
 .uploader__hint,
 .uploader__meta {
   color: rgba(27, 27, 27, 0.6);

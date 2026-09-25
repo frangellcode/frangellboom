@@ -51,6 +51,25 @@ export async function pickVideoNatively(): Promise<VideoSource | null> {
   return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
 }
 
+interface CameraPlugin {
+  record(options: { maxDuration: number; hint: string }): Promise<{ video?: { webPath: string; path: string; name: string } }>;
+}
+
+/** ios/App/App/CameraPlugin.swift */
+const Camera = registerPlugin<CameraPlugin>("Camera");
+
+/** Longest clip the camera records: the longest segment (2 s) with room on
+ *  either side to choose it. */
+export const MAX_RECORDING_SECONDS = 3;
+
+/** Opens the app's own camera. Resolves to null if the person closes it
+ *  without recording; rejects with code "DENIED" when camera access is off. */
+export async function recordVideoNatively(hint: string): Promise<VideoSource | null> {
+  const { video } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint });
+  if (!video) return null;
+  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
+}
+
 /** A video that reached the app as a File (not through the picker) has to be
  *  on disk for the native engine to read it. */
 export async function importFileNatively(file: File): Promise<VideoSource> {

@@ -16,5 +16,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(KeepAwakePlugin())
         bridge?.registerPluginInstance(LoopEnginePlugin())
         bridge?.registerPluginInstance(TipJarPlugin())
+        bridge?.registerPluginInstance(CameraPlugin())
     }
 }

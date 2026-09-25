@@ -1,2 +1,3 @@
 "NSPhotoLibraryUsageDescription" = "Frangellboom opens the videos you pick so you can turn them into loops. Everything is processed on your device and nothing is uploaded.";
 "NSPhotoLibraryAddUsageDescription" = "Frangellboom saves the loops you create to your photo library.";
+"NSCameraUsageDescription" = "Frangellboom uses the camera only when you choose to record a moment to turn into a loop. Videos never leave your device.";
