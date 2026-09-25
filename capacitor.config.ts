@@ -20,6 +20,16 @@ const config: CapacitorConfig = {
     scrollEnabled: false,
     backgroundColor: "#000000",
   },
+  plugins: {
+    // The launch screen (the home screen's sky) stays up until the web app
+    // says its intro is ready to play — see src/lib/intro.ts — so there's no
+    // blank frame between the two.
+    SplashScreen: {
+      launchAutoHide: false,
+      launchFadeOutDuration: 0,
+      showSpinner: false,
+    },
+  },
   // Live reload for development only (npm run ios:dev): the app loads the
   // Vite dev server on this Mac instead of its bundled files. Set only while
   // syncing from that script — a build synced without it (npm run ios) goes

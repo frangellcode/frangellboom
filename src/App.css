@@ -849,3 +849,117 @@
 .tipjar__close {
   width: 100%;
 }
+
+/* ---------- cold-start intro ---------- */
+
+/* The launch screen is the sky, full screen. Until the intro is ready the web
+   app shows exactly that frame (the sky box is 108% wide for the drift, so
+   0.926 scales it back to the screen) and nothing else — so taking the launch
+   screen down shows no change at all. */
+.app--waiting::before {
+  animation: none;
+  transform: scale(0.926);
+}
+
+.app--waiting .bar,
+.app--waiting .screen {
+  opacity: 0;
+}
+
+/* Then the home screen assembles itself: the sky eases in towards the
+   camera, the glass arc floats down out of the haze, LOOP rises letter by
+   letter, and the line, button and footer follow. */
+.app--intro::before {
+  animation:
+    sky-in 2.4s cubic-bezier(0.22, 0.8, 0.2, 1) both,
+    drift 48s 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes sky-in {
+  from {
+    transform: scale(0.926);
+  }
+  to {
+    transform: scale(1.06) translate3d(-1.5%, 0, 0);
+  }
+}
+
+.app--intro .screen {
+  animation: none;
+}
+
+.app--intro .bar {
+  animation: rise 0.8s 1.5s ease-out backwards;
+}
+
+.app--intro .glass {
+  animation:
+    float 6s 1.6s ease-in-out infinite alternate,
+    glass-in 1.5s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes glass-in {
+  from {
+    opacity: 0;
+    transform: translateY(-70px) scale(0.88) rotate(-6deg);
+    filter: blur(18px);
+  }
+}
+
+.poster__letter {
+  display: inline-block;
+}
+
+.app--intro .poster__word {
+  animation: none;
+}
+
+.app--intro .poster__letter {
+  animation: letter-in 0.9s calc(0.5s + var(--i) * 0.09s) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes letter-in {
+  from {
+    opacity: 0;
+    transform: translateY(45%);
+    filter: blur(12px);
+  }
+}
+
+.app--intro .poster__line {
+  animation: reveal 0.9s 1.05s ease-out backwards;
+}
+
+.app--intro .uploader > .button {
+  animation: rise 0.8s 1.3s ease-out backwards;
+}
+
+.app--intro .uploader__meta,
+.app--intro .uploader__hint {
+  animation: rise 0.8s 1.45s ease-out backwards;
+}
+
+.app--intro .support {
+  animation: rise 0.8s 1.6s ease-out backwards;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app--intro::before,
+  .app--intro .bar,
+  .app--intro .glass,
+  .app--intro .poster__letter,
+  .app--intro .poster__line,
+  .app--intro .uploader > .button,
+  .app--intro .uploader__meta,
+  .app--intro .support {
+    animation-duration: 0.01s;
+    animation-delay: 0s;
+  }
+}

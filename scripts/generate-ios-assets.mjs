@@ -45,12 +45,14 @@ await writeFile(
   ) + "\n",
 );
 
-// The launch screen is the home screen's sky, so opening the app goes
-// straight from it into the home screen.
-await mkdir(`${ios}/Splash.imageset`, { recursive: true });
-await sharp(SKY).resize(1320, 2868, { fit: "cover" }).png().toFile(`${ios}/Splash.imageset/splash.png`);
+// The launch screen is the home screen's sky, framed exactly as the home
+// screen's first frame, so the intro animation picks up from it without a
+// jump. (The asset is named LaunchSky, not Splash: iOS caches launch screens,
+// and a new name makes it drop the old one.)
+await mkdir(`${ios}/LaunchSky.imageset`, { recursive: true });
+await sharp(SKY).resize(1320, 2868, { fit: "cover" }).png().toFile(`${ios}/LaunchSky.imageset/splash.png`);
 await writeFile(
-  `${ios}/Splash.imageset/Contents.json`,
+  `${ios}/LaunchSky.imageset/Contents.json`,
   JSON.stringify(
     { images: [{ idiom: "universal", filename: "splash.png", scale: "1x" }], info: { author: "xcode", version: 1 } },
     null,

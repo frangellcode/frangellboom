@@ -69,7 +69,11 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
       <GlassArc />
       <div className="poster">
         <p key={t.heroWord} className="poster__word" style={{ "--chars": t.heroWord.length } as React.CSSProperties}>
-          {t.heroWord}
+          {[...t.heroWord].map((letter, i) => (
+            <span key={i} className="poster__letter" style={{ "--i": i } as React.CSSProperties}>
+              {letter}
+            </span>
+          ))}
         </p>
         <Headline text={t.heroLine} className="poster__line" />
       </div>

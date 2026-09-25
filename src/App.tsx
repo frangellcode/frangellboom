@@ -3,6 +3,7 @@ import { toggleLanguage, useLanguage, useT } from "./lib/i18n";
 import { FadeText } from "./components/FadeText";
 import { SupportFooter } from "./components/SupportFooter";
 import { Headline } from "./components/Headline";
+import { introPending, prepareIntro } from "./lib/intro";
 import { VideoUploader } from "./components/VideoUploader";
 import { VideoTrimmer } from "./components/VideoTrimmer";
 import { BoomerangPreview } from "./components/BoomerangPreview";
@@ -29,11 +30,26 @@ const MAX_SEGMENT = 2;
 // vanished the instant the export finished, which read as an abrupt cut
 // even though the result screen itself fades in underneath it.
 const OVERLAY_LEAVE_MS = 280;
+// Matches the longest intro animation in App.css (sky-in).
+const INTRO_MS = 2600;
 
 function App() {
   const t = useT();
   const lang = useLanguage();
   const [step, setStep] = useState<Step>("upload");
+  // Cold start: the sky waits (matching the launch screen) until everything
+  // is loaded, then the home screen assembles itself; see App.css.
+  const [intro, setIntro] = useState<"waiting" | "playing" | "done">(() => (introPending() ? "waiting" : "done"));
+  useEffect(() => {
+    if (intro !== "waiting") return;
+    let timer = 0;
+    prepareIntro().then(() => {
+      setIntro("playing");
+      timer = window.setTimeout(() => setIntro("done"), INTRO_MS);
+    });
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, on the cold start
+  }, []);
   const [source, setSource] = useState<VideoSource | null>(null);
   const videoUrl = source?.url ?? null;
   const [duration, setDuration] = useState(0);
@@ -187,7 +203,9 @@ function App() {
   const headline = (text: string) => <Headline text={text} />;
 
   return (
-    <div className={`app${step === "upload" ? " app--hero" : ""}`}>
+    <div
+      className={`app${step === "upload" ? " app--hero" : ""}${intro === "waiting" ? " app--waiting" : intro === "playing" ? " app--intro" : ""}`}
+    >
       <header className="bar">
         <h1 className="bar__wordmark">Frangellboom</h1>
         <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
