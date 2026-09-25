@@ -119,7 +119,8 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
         var best: (format: AVCaptureDevice.Format, score: Double, fps: Double, hdr: Bool)?
         for format in device.formats {
             let size = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-            guard size.width <= 3840 else { continue }
+            // Video formats only: 16:9, up to 4K (the 4:3 ones are for stills).
+            guard size.width <= 3840, abs(Double(size.width) / Double(size.height) - 16.0 / 9.0) < 0.05 else { continue }
             let fps = min(60, format.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30)
             let hdr = format.supportedColorSpaces.contains(.HLG_BT2020)
             let score = Double(size.width * size.height) * 1000 + fps * 10 + (hdr ? 1 : 0)
@@ -129,13 +130,25 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
     }
 
     private func configure(position: AVCaptureDevice.Position) {
+        let label = applyConfiguration(position: position)
+        // Only after commitConfiguration: startRunning inside a
+        // begin/commit pair raises an exception (and takes the app with it).
+        if !session.isRunning { session.startRunning() }
+        DispatchQueue.main.async { self.formatLabel.text = label }
+    }
+
+    /// Sets up input, output and format; returns the label for the top bar.
+    private func applyConfiguration(position: AVCaptureDevice.Position) -> String {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         session.sessionPreset = .inputPriority
+        // Otherwise the session picks the colour space itself on commit,
+        // undoing the HLG (HDR) choice below.
+        session.automaticallyConfiguresCaptureDeviceForWideColor = false
         session.inputs.forEach { session.removeInput($0) }
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
               let input = try? AVCaptureDeviceInput(device: device),
-              session.canAddInput(input) else { return }
+              session.canAddInput(input) else { return "" }
         session.addInput(input)
         if session.outputs.isEmpty, session.canAddOutput(movieOutput) {
             session.addOutput(movieOutput)
@@ -162,8 +175,7 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
             }
             connection.isVideoMirrored = position == .front
         }
-        if !session.isRunning { session.startRunning() }
-        DispatchQueue.main.async { self.formatLabel.text = label }
+        return label
     }
 
     // MARK: - Controls
