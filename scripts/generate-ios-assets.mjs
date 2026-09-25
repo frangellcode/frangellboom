@@ -47,18 +47,12 @@ await writeFile(
 
 // The launch screen is the home screen's sky, framed exactly as the home
 // screen's first frame, so the intro animation picks up from it without a
-// jump. (The asset is named LaunchSky, not Splash: iOS caches launch screens,
-// and a new name makes it drop the old one.)
-await mkdir(`${ios}/LaunchSky.imageset`, { recursive: true });
-await sharp(SKY).resize(1320, 2868, { fit: "cover" }).png().toFile(`${ios}/LaunchSky.imageset/splash.png`);
-await writeFile(
-  `${ios}/LaunchSky.imageset/Contents.json`,
-  JSON.stringify(
-    { images: [{ idiom: "universal", filename: "splash.png", scale: "1x" }], info: { author: "xcode", version: 1 } },
-    null,
-    2,
-  ) + "\n",
-);
+// jump. It ships as a plain PNG in the app bundle, not in the asset catalog:
+// splashboardd, which draws launch screens, can't load it from there ("Could
+// not load the LaunchSky image referenced from a nib") and falls back to the
+// bare background color. (Named LaunchSky, not Splash, so iOS drops the
+// launch screen it cached from the first design.)
+await sharp(SKY).resize(1320, 2868, { fit: "cover" }).png().toFile("ios/App/App/LaunchSky.png");
 
 // The web app's icons, from the same render.
 for (const [file, size] of [["public/pwa-192.png", 192], ["public/pwa-512.png", 512], ["public/apple-touch-icon.png", 180], ["public/favicon-32.png", 32]]) {
