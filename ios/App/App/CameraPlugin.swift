@@ -27,7 +27,7 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func record(_ call: CAPPluginCall) {
-        let maxDuration = call.getDouble("maxDuration") ?? 3
+        let maxDuration = call.getDouble("maxDuration") ?? 2
         let hint = call.getString("hint") ?? ""
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {

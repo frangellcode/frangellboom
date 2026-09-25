@@ -15,7 +15,7 @@ import { createBoomerang, type Resolution, type Speed, type Mode } from "./lib/b
 import { extractPreviewClip } from "./lib/previewClip";
 import { totalBoomerangDuration, deriveLoops } from "./lib/boomerangMath";
 import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
-import { probeAspect, type VideoSource } from "./lib/videoSource";
+import { probeVideo, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
 import { createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
 import "./App.css";
@@ -104,23 +104,53 @@ function App() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [step]);
 
-  const handleSelect = useCallback(async (selected: VideoSource) => {
-    const probed = await probeAspect(selected.url);
-    setAspect(probed ?? 9 / 16);
+  // Makes a new video the one being worked on, from the start.
+  const adoptSource = useCallback((selected: VideoSource, probed: { aspect: number; duration: number } | null) => {
+    setAspect(probed?.aspect ?? 9 / 16);
     setError(null);
     setSource((prev) => {
       if (prev) releaseSource(prev);
       return selected;
     });
-    setDuration(0);
+    setDuration(probed?.duration ?? 0);
     setStart(0);
     setSegmentDuration(DEFAULT_SEGMENT);
     setPreviewClipUrl((prev) => {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return null;
     });
-    setStep("trim");
   }, []);
+
+  const handleSelect = useCallback(
+    async (selected: VideoSource) => {
+      adoptSource(selected, await probeVideo(selected.url));
+      setStep("trim");
+    },
+    [adoptSource],
+  );
+
+  // A recording is already a loop's length, so it skips trimming: straight
+  // to shaping the loop, whose preview box waits (with a spinner) for the
+  // preview clip.
+  const handleRecord = useCallback(
+    async (recorded: VideoSource) => {
+      const probed = await probeVideo(recorded.url);
+      adoptSource(recorded, probed);
+      const length = Math.min(Math.max(probed?.duration ?? DEFAULT_SEGMENT, MIN_SEGMENT), MAX_SEGMENT);
+      setSegmentDuration(length);
+      setPreparingPreview(true);
+      setStep("adjust");
+      try {
+        const clipUrl = await createPreviewNatively(recorded, 0, length);
+        setPreviewClipUrl(clipUrl);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setPreparingPreview(false);
+      }
+    },
+    [adoptSource],
+  );
 
   const handleReset = useCallback(() => {
     setStep("upload");
@@ -232,7 +262,7 @@ function App() {
       <main className="app__main">
         {step === "upload" && (
           <div className="screen hero" key="upload">
-            <VideoUploader onSelect={handleSelect} error={error} />
+            <VideoUploader onSelect={handleSelect} onRecord={handleRecord} error={error} />
             <SupportFooter />
           </div>
         )}
@@ -288,14 +318,20 @@ function App() {
         {(step === "adjust" || step === "processing") && videoUrl && (
           <div className={`screen${screenLeaving ? " screen--leaving" : ""}`} key="adjust">
             {headline(t.adjustEyebrow)}
-            <BoomerangPreview
-              videoUrl={previewClipUrl ?? videoUrl}
-              aspect={aspect}
-              start={previewClipUrl ? 0 : start}
-              duration={clampedSegmentDuration}
-              speed={effectiveSpeed}
-              mode={mode}
-            />
+            {preparingPreview && !previewClipUrl ? (
+              <div className="preview preview--waiting">
+                <div className="preview__placeholder" style={{ aspectRatio: aspect }} />
+              </div>
+            ) : (
+              <BoomerangPreview
+                videoUrl={previewClipUrl ?? videoUrl}
+                aspect={aspect}
+                start={previewClipUrl ? 0 : start}
+                duration={clampedSegmentDuration}
+                speed={effectiveSpeed}
+                mode={mode}
+              />
+            )}
 
             <p className="meta">
               <FadeText value={t.segment} trigger={lang} /> {clampedSegmentDuration.toFixed(1)}s ·{" "}

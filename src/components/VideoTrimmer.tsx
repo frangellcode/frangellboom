@@ -4,7 +4,7 @@ import { FadeText } from "./FadeText";
 
 interface VideoTrimmerProps {
   videoUrl: string;
-  /** Width / height, known before the video loads (see probeAspect). */
+  /** Width / height, known before the video loads (see probeVideo). */
   aspect: number;
   duration: number;
   start: number;

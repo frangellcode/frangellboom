@@ -58,9 +58,9 @@ interface CameraPlugin {
 /** ios/App/App/CameraPlugin.swift */
 const Camera = registerPlugin<CameraPlugin>("Camera");
 
-/** Longest clip the camera records: the longest segment (2 s) with room on
- *  either side to choose it. */
-export const MAX_RECORDING_SECONDS = 3;
+/** Longest clip the camera records: exactly the longest segment a loop uses
+ *  (2 s), so a recording goes straight to shaping the loop, no trimming. */
+export const MAX_RECORDING_SECONDS = 2;
 
 /** Opens the app's own camera. Resolves to null if the person closes it
  *  without recording; rejects with code "DENIED" when camera access is off. */

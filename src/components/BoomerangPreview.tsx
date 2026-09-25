@@ -6,7 +6,7 @@ import type { Mode, Speed } from "../lib/boomerang";
 
 interface BoomerangPreviewProps {
   videoUrl: string;
-  /** Width / height, known before the video loads (see probeAspect). */
+  /** Width / height, known before the video loads (see probeVideo). */
   aspect: number;
   start: number;
   duration: number;

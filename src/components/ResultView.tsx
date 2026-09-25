@@ -10,7 +10,7 @@ import { Headline } from "./Headline";
 export type LoopResult = { blob: Blob } | { url: string; uri: string };
 
 interface ResultViewProps {
-  /** Width / height, known before the video loads (see probeAspect). */
+  /** Width / height, known before the video loads (see probeVideo). */
   aspect: number;
   result: LoopResult;
   onReset: () => void;

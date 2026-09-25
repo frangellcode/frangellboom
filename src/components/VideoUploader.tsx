@@ -8,10 +8,12 @@ import { Headline } from "./Headline";
 
 interface VideoUploaderProps {
   onSelect: (source: VideoSource) => void;
+  /** A clip from the app's own camera: already the length of a loop. */
+  onRecord: (source: VideoSource) => void;
   error?: string | null;
 }
 
-export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
+export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps) {
   const t = useT();
   const lang = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -49,12 +51,12 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
   const openCamera = useCallback(() => {
     setCameraError(false);
     recordVideoNatively(t.recordHint)
-      .then((source) => source && onSelect(source))
+      .then((source) => source && onRecord(source))
       .catch((err) => {
         if ((err as { code?: string }).code === "DENIED") setCameraError(true);
         else console.error(err);
       });
-  }, [onSelect, t.recordHint]);
+  }, [onRecord, t.recordHint]);
 
   return (
     <div
