@@ -22,6 +22,17 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      // Dev server only: React Fast Refresh injects an inline preamble and
+      // HMR talks over a websocket, both of which index.html's locked-down
+      // CSP would block. Builds keep the strict policy untouched.
+      {
+        name: "dev-csp",
+        apply: "serve",
+        transformIndexHtml: (html) =>
+          html
+            .replace("script-src 'self' 'wasm-unsafe-eval';", "script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline';")
+            .replace("connect-src 'self' blob:;", "connect-src 'self' blob: ws: wss:;"),
+      },
       // Self-host ffmpeg-core so the app has zero third-party runtime
       // dependencies (no CDN calls) and works fully offline once installed.
       !ios &&

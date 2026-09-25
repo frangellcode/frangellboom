@@ -20,6 +20,11 @@ const config: CapacitorConfig = {
     scrollEnabled: false,
     backgroundColor: "#991c3b",
   },
+  // Live reload for development only (npm run ios:dev): the app loads the
+  // Vite dev server on this Mac instead of its bundled files. Set only while
+  // syncing from that script — a build synced without it (npm run ios) goes
+  // back to the bundled files, which is the only thing that may ship.
+  ...(process.env.CAP_LIVE_URL ? { server: { url: process.env.CAP_LIVE_URL, cleartext: true } } : {}),
 };
 
 export default config;

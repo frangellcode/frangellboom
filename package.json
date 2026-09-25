@@ -14,7 +14,8 @@
     "ios": "npm run build:ios && cap sync ios && open ios/App/Frangellboom.xcworkspace",
     "ios-assets": "node scripts/generate-ios-assets.mjs",
     "build:ios": "tsc -b && vite build --mode ios",
-    "store-screenshots": "node scripts/frame-screenshots.mjs"
+    "store-screenshots": "node scripts/frame-screenshots.mjs",
+    "ios:dev": "sh scripts/ios-dev.sh"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",
