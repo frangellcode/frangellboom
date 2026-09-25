@@ -30,8 +30,6 @@ const MAX_SEGMENT = 2;
 // vanished the instant the export finished, which read as an abrupt cut
 // even though the result screen itself fades in underneath it.
 const OVERLAY_LEAVE_MS = 280;
-// Matches the longest intro animation in App.css (sky-in).
-const INTRO_MS = 2600;
 
 function App() {
   const t = useT();
@@ -42,14 +40,15 @@ function App() {
   const [intro, setIntro] = useState<"waiting" | "playing" | "done">(() => (introPending() ? "waiting" : "done"));
   useEffect(() => {
     if (intro !== "waiting") return;
-    let timer = 0;
-    prepareIntro().then(() => {
-      setIntro("playing");
-      timer = window.setTimeout(() => setIntro("done"), INTRO_MS);
-    });
-    return () => window.clearTimeout(timer);
+    prepareIntro().then(() => setIntro("playing"));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, on the cold start
   }, []);
+  // The intro's classes stay on for as long as the home screen it built is
+  // up. Taking them off any earlier swaps each element back to its everyday
+  // entrance animation, which the browser then plays all over again.
+  useEffect(() => {
+    if (step !== "upload" && intro === "playing") setIntro("done");
+  }, [step, intro]);
   const [source, setSource] = useState<VideoSource | null>(null);
   const videoUrl = source?.url ?? null;
   const [duration, setDuration] = useState(0);
