@@ -61,7 +61,7 @@
   flex-direction: column;
   gap: 16px;
   min-height: 100%;
-  animation: fade-in 0.22s ease-out;
+  animation: fade-in 0.5s 0.12s ease-out backwards;
 }
 
 @keyframes fade-in {
@@ -189,12 +189,16 @@
 
 /* The home screen sits on a cloud sky that runs under the status bar and
    drifts very slowly; everything after it is the black canvas. */
-.app--hero {
+.app {
   position: relative;
   isolation: isolate;
+  overflow: hidden;
 }
 
-.app--hero::before {
+/* The sky is always there, under a black veil. On the home screen the veil
+   lifts; on every other step it settles back over the sky — so going from
+   one to the other is a slow dusk or dawn, never a cut. */
+.app::before {
   content: "";
   position: absolute;
   inset: -4%;
@@ -212,7 +216,25 @@
   }
 }
 
-.app--hero .bar {
+.app::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--void);
+  opacity: 1;
+  transition: opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.app--hero::after {
+  opacity: 0;
+  transition-duration: 0.9s;
+}
+
+/* The canvas itself stays clear so the veil and the sky show through. */
+.app,
+.app .bar {
   background: none;
 }
 
