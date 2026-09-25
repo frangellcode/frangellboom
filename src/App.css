@@ -628,16 +628,16 @@
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .chip {
-  padding: 7px 14px;
+  padding: 7px 11px;
   border: none;
   border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.07);
   color: var(--ink);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
