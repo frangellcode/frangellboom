@@ -23,8 +23,8 @@ export function ProcessingOverlay({ progress, label }: ProcessingOverlayProps) {
       <svg className="processing__mark" viewBox="0 0 120 80" aria-hidden="true">
         <path d="M20,68 C20,38 36,12 60,12 C84,12 100,38 100,68" pathLength="100" />
       </svg>
-      <p className="eyebrow">{label}</p>
-      <p className="processing__pct mono">{pct}%</p>
+      <p className="processing__label">{label}</p>
+      <p className="processing__pct">{pct}%</p>
       <div className="processing__bar">
         <div className="processing__bar-fill" style={{ transform: `scaleX(${progress})` }} />
       </div>

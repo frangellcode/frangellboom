@@ -3,13 +3,14 @@ import { isNativeApp } from "./native";
 
 const es = {
   tagline: "bucles de ida y vuelta en alta calidad",
-  /** Set around the circle on the home screen; ends with a separator so the
-   *  ring closes on itself. */
-  heroRing: "IDA Y VUELTA · EN CALIDAD ORIGINAL · ",
+  /** Poster-size word on the home screen. */
+  heroWord: "BUCLE",
+  /** Headlines: the word in {braces} is set in the handwritten face. */
+  heroLine: "Ida y vuelta, en calidad {original}.",
   importCta: "Elegir un video",
   dropHint: "o arrastra un clip aquí",
-  trimEyebrow: "Elige el momento",
-  adjustEyebrow: "Dale forma al bucle",
+  trimEyebrow: "Elige el {momento}",
+  adjustEyebrow: "Dale forma al {bucle}",
   importTitle: "Importa tu video",
   importHint: isNativeApp ? "Toca para elegir un video de tu fototeca." : "Arrastra un clip aquí o toca para elegirlo.",
   badgeOnDevice: "100% en tu dispositivo",
@@ -36,7 +37,7 @@ const es = {
   pausePreview: "Pausar vista previa",
   playPreview: "Reproducir vista previa",
   flavor: ["Dándole la vuelta a los píxeles…", "Afinando la ida y vuelta…", "Puliendo cada cuadro…", "Ya casi está"],
-  ready: "¡Tu bucle está listo!",
+  ready: "Tu bucle está {listo}",
   download: "Descargar",
   save: "Guardar o compartir",
   saveFailed: "No se pudo guardar el video. Revisa que tengas espacio libre e inténtalo de nuevo.",
@@ -63,11 +64,12 @@ const es = {
 
 const en: typeof es = {
   tagline: "back-and-forth loops in full quality",
-  heroRing: "BACK AND FORTH · IN ORIGINAL QUALITY · ",
+  heroWord: "LOOP",
+  heroLine: "Back and forth, in {full} quality.",
   importCta: "Choose a video",
   dropHint: "or drop a clip here",
-  trimEyebrow: "Pick the moment",
-  adjustEyebrow: "Shape the loop",
+  trimEyebrow: "Pick the {moment}",
+  adjustEyebrow: "Shape the {loop}",
   importTitle: "Import your video",
   importHint: isNativeApp ? "Tap to pick a video from your library." : "Drop a clip here or tap to pick one.",
   badgeOnDevice: "100% on your device",
@@ -94,7 +96,7 @@ const en: typeof es = {
   pausePreview: "Pause preview",
   playPreview: "Play preview",
   flavor: ["Flipping the pixels around…", "Tuning the back-and-forth…", "Polishing every frame…", "Almost there"],
-  ready: "Your loop is ready!",
+  ready: "Your loop is {ready}",
   download: "Download",
   save: "Save or share",
   saveFailed: "The video couldn't be saved. Check that you have free space and try again.",

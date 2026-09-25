@@ -50,7 +50,7 @@ export function BoomerangControls({
   );
 
   return (
-    <div className="controls">
+    <div className="controls card">
       {row(
         t.mode,
         MODES.map((value) => (
@@ -74,7 +74,7 @@ export function BoomerangControls({
               <button
                 key={opt.value}
                 type="button"
-                className={`chip chip--mono${speed === opt.value ? " chip--active" : ""}`}
+                className={`chip${speed === opt.value ? " chip--active" : ""}`}
                 onClick={() => onSpeedChange(opt.value)}
               >
                 {opt.label}
@@ -90,7 +90,7 @@ export function BoomerangControls({
           <button
             key={opt.value}
             type="button"
-            className={`chip chip--mono${resolution === opt.value ? " chip--active" : ""}`}
+            className={`chip${resolution === opt.value ? " chip--active" : ""}`}
             onClick={() => onResolutionChange(opt.value)}
           >
             {opt.label}

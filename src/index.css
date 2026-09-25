@@ -1,27 +1,32 @@
-/* Frangellboom — "Monte" style: two flat surfaces (Corten terracotta and
-   Sandstone cream), one serif that does the talking, a mono that measures.
-   No gradients, no shadows, no blur: depth comes only from the jump between
-   the two surfaces. Light only, by design. */
+/* Frangellboom — "Air" style: a black canvas, type as the brand. One sans
+   at a quiet medium weight carries the interface; a condensed poster face
+   makes the big statements, and a single handwritten word breaks into a
+   headline for personality. Buttons are ghost (white outline) or light
+   (haze fill); cards are flat haze islands on the black. No gradients,
+   no shadows. Dark only, by design. */
 :root {
-  --corten: #b84b30;
-  --bordeaux: #5f1d1a;
-  --sandstone: #f8f4e9;
-  --driftwood: #e5e7eb;
-  --charcoal: #000000;
-  --bone: #ffffff;
-  --smoke: #666666;
-  --ash: #999999;
-  --espresso: #3e3d3a;
+  --whiteout: #ffffff;
+  --haze: #f5f5f5;
+  --ink: #1b1b1b;
+  --void: #000000;
+  --twilight: #426188;
+  --signal: #2b7fff;
+  --muted: rgba(255, 255, 255, 0.58);
+  --hairline: rgba(255, 255, 255, 0.16);
 
-  --serif: "Playfair Display", "Times New Roman", serif;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+  --poster: "Anton", "Impact", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
 
-  --radius-card: 14px;
+  --radius-input: 4px;
+  --radius-button: 8px;
+  --radius-image: 11px;
+  --radius-card: 12px;
   --radius-pill: 9999px;
 
-  color-scheme: light;
-  font: 400 16px/1.35 var(--serif);
-  color: var(--charcoal);
+  color-scheme: dark;
+  font: 500 16px/1.5 var(--sans);
+  color: var(--whiteout);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -39,7 +44,7 @@ html {
   height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
-  background: var(--corten);
+  background: var(--void);
 }
 
 body {
@@ -47,8 +52,7 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  /* The status bar sits over the terracotta bar at the top of every screen. */
-  background: var(--corten);
+  background: var(--void);
 }
 
 #root {

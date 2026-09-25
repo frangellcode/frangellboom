@@ -3,6 +3,7 @@ import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
 import { shareVideoNatively } from "../lib/nativeSave";
+import { Headline } from "./Headline";
 
 /** A finished loop: rendered by ffmpeg.wasm into memory on the web, or by the
  *  native engine into a file on disk in the iOS app. */
@@ -55,17 +56,15 @@ export function ResultView({ result, onReset }: ResultViewProps) {
 
   return (
     <div className={`result${leaving ? " result--leaving" : ""}`}>
-      <p className="eyebrow">
-        <FadeText value={t.ready} trigger={lang} />
-      </p>
+      <Headline text={t.ready} />
       <video src={url} className="result__video" autoPlay loop muted playsInline />
       <div className="actions actions--stacked">
         {isNativeApp ? (
-          <button type="button" className="pill pill--primary" onClick={handleNativeSave}>
+          <button type="button" className="button button--light" onClick={handleNativeSave}>
             <FadeText value={t.save} trigger={lang} />
           </button>
         ) : (
-          <a className="pill pill--primary" href={url} download="frangellboom.mp4">
+          <a className="button button--light" href={url} download="frangellboom.mp4">
             <FadeText value={t.download} trigger={lang} />
           </a>
         )}

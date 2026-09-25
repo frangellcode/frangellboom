@@ -9,7 +9,7 @@ const ios = "ios/App/App/Assets.xcassets";
 await mkdir(`${ios}/AppIcon.appiconset`, { recursive: true });
 await sharp("design/icon-source.svg", { density: 1024 })
   .resize(1024, 1024)
-  .flatten({ background: "#b84b30" })
+  .flatten({ background: "#000000" })
   .removeAlpha()
   .png()
   .toFile(`${ios}/AppIcon.appiconset/AppIcon-1024.png`);
@@ -25,9 +25,9 @@ await writeFile(
   ) + "\n",
 );
 
-// The launch screen is the flat terracotta the app opens onto.
+// The launch screen is the flat black the app opens onto.
 await mkdir(`${ios}/Splash.imageset`, { recursive: true });
-await sharp({ create: { width: 1320, height: 2868, channels: 3, background: "#b84b30" } })
+await sharp({ create: { width: 1320, height: 2868, channels: 3, background: "#000000" } })
   .png()
   .toFile(`${ios}/Splash.imageset/splash.png`);
 

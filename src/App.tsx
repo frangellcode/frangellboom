@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toggleLanguage, useLanguage, useT } from "./lib/i18n";
 import { FadeText } from "./components/FadeText";
 import { SupportFooter } from "./components/SupportFooter";
+import { Headline } from "./components/Headline";
 import { VideoUploader } from "./components/VideoUploader";
 import { VideoTrimmer } from "./components/VideoTrimmer";
 import { BoomerangPreview } from "./components/BoomerangPreview";
@@ -183,22 +184,15 @@ function App() {
     [mode, effectiveSpeed, clampedSegmentDuration, loops],
   );
 
-  const eyebrow = (text: string) => (
-    <p className="eyebrow">
-      <FadeText value={text} trigger={lang} />
-    </p>
-  );
+  const headline = (text: string) => <Headline text={text} />;
 
   return (
     <div className={`app${step === "upload" ? " app--hero" : ""}`}>
       <header className="bar">
-        <span className="bar__side" aria-hidden="true" />
         <h1 className="bar__wordmark">Frangellboom</h1>
-        <span className="bar__side bar__side--end">
-          <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
-            <FadeText value={t.langToggle} trigger={lang} />
-          </button>
-        </span>
+        <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
+          <FadeText value={t.langToggle} trigger={lang} />
+        </button>
       </header>
 
       <main className="app__main">
@@ -211,7 +205,7 @@ function App() {
 
         {step === "trim" && videoUrl && (
           <div className="screen" key="trim">
-            {eyebrow(t.trimEyebrow)}
+            {headline(t.trimEyebrow)}
             <VideoTrimmer
               videoUrl={videoUrl}
               duration={duration}
@@ -221,12 +215,12 @@ function App() {
               onDurationChange={setDuration}
             />
 
-            <div className="field">
+            <div className="field card">
               <label className="field__label" htmlFor="segment-duration">
                 <span>
                   <FadeText value={t.segmentLength} trigger={lang} />
                 </span>
-                <span className="mono">{clampedSegmentDuration.toFixed(1)}s</span>
+                <span className="field__value">{clampedSegmentDuration.toFixed(1)}s</span>
               </label>
               <input
                 id="segment-duration"
@@ -241,12 +235,12 @@ function App() {
             </div>
 
             <div className="actions">
-              <button type="button" className="pill pill--quiet" onClick={handleReset}>
+              <button type="button" className="button button--ghost" onClick={handleReset}>
                 <FadeText value={t.back} trigger={lang} />
               </button>
               <button
                 type="button"
-                className="pill pill--primary"
+                className="button button--light"
                 onClick={handleGoToAdjust}
                 disabled={duration === 0 || preparingPreview}
               >
@@ -258,7 +252,7 @@ function App() {
 
         {(step === "adjust" || step === "processing") && videoUrl && (
           <div className="screen" key="adjust">
-            {eyebrow(t.adjustEyebrow)}
+            {headline(t.adjustEyebrow)}
             <BoomerangPreview
               videoUrl={previewClipUrl ?? videoUrl}
               start={previewClipUrl ? 0 : start}
@@ -267,7 +261,7 @@ function App() {
               mode={mode}
             />
 
-            <p className="meta mono">
+            <p className="meta">
               <FadeText value={t.segment} trigger={lang} /> {clampedSegmentDuration.toFixed(1)}s ·{" "}
               <FadeText value={t.totalLength} trigger={lang} /> {totalDuration.toFixed(1)}s
             </p>
@@ -284,10 +278,10 @@ function App() {
             {error && <p className="error">{error}</p>}
 
             <div className="actions">
-              <button type="button" className="pill pill--quiet" onClick={() => setStep("trim")}>
+              <button type="button" className="button button--ghost" onClick={() => setStep("trim")}>
                 <FadeText value={t.trimBack} trigger={lang} />
               </button>
-              <button type="button" className="pill pill--primary" onClick={handleCreate} disabled={step === "processing"}>
+              <button type="button" className="button button--light" onClick={handleCreate} disabled={step === "processing"}>
                 <FadeText value={t.create} trigger={lang} />
               </button>
             </div>

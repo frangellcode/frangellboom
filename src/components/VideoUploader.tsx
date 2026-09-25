@@ -4,6 +4,7 @@ import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
 import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
 import type { VideoSource } from "../lib/videoSource";
+import { Headline } from "./Headline";
 
 interface VideoUploaderProps {
   onSelect: (source: VideoSource) => void;
@@ -65,45 +66,45 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
         className="uploader__input"
         onChange={(e) => handleFiles(e.target.files)}
       />
-      <HeroEmblem ring={t.heroRing} />
-      <button type="button" className="pill pill--on-field" onClick={openPicker}>
+      <GlassArc />
+      <div className="poster">
+        <p key={t.heroWord} className="poster__word" style={{ "--chars": t.heroWord.length } as React.CSSProperties}>
+          {t.heroWord}
+        </p>
+        <Headline text={t.heroLine} className="poster__line" />
+      </div>
+      <button type="button" className="button button--light" onClick={openPicker}>
         <FadeText value={t.importCta} trigger={lang} />
       </button>
       {!isNativeApp && (
-        <p className="uploader__hint mono">
+        <p className="uploader__hint">
           <FadeText value={t.dropHint} trigger={lang} />
         </p>
       )}
       {error && <p className="uploader__error">{error}</p>}
-      <p className="uploader__meta mono">
+      <p className="uploader__meta">
         <FadeText value={t.badgeOnDevice} trigger={lang} /> · <FadeText value={t.badgeQuality} trigger={lang} />
       </p>
     </div>
   );
 }
 
-/**
- * The home screen's mark: the app's arc drawn as a line, swinging forward and
- * back like the loops it makes, inside a ring of text set on a circle.
- */
-function HeroEmblem({ ring }: { ring: string }) {
+/** The app's arc as a piece of glass floating in the sky — the home screen's
+ *  counterpart to the sculptural glass forms in the Air style reference. */
+function GlassArc() {
+  const arc = "M40,150 C40,86 76,30 120,30 C164,30 200,86 200,150";
   return (
-    <svg className="emblem" viewBox="0 0 300 300" role="img" aria-label={ring.replace(/ · $/, "")}>
+    <svg className="glass" viewBox="0 0 240 180" aria-hidden="true">
       <defs>
-        <path id="emblem-ring" d="M150,150 m-118,0 a118,118 0 1,1 236,0 a118,118 0 1,1 -236,0" />
+        <filter id="glass-soft" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.4" />
+        </filter>
       </defs>
-      {/* Remounted per language so the new ring fades in instead of snapping. */}
-      <text key={ring} className="emblem__ring">
-        <textPath href="#emblem-ring" textLength="738" lengthAdjust="spacing">
-          {ring}
-        </textPath>
-      </text>
-      <circle className="emblem__circle" cx="150" cy="150" r="92" />
-      <g className="emblem__swing">
-        <path className="emblem__arc" d="M104,182 C104,142 124,106 150,106 C176,106 196,142 196,182" />
-        <path className="emblem__arrow" d="M186,170 L196,184 L206,170" />
-        <path className="emblem__arrow" d="M94,170 L104,184 L114,170" />
-      </g>
+      {/* body: frosted, lets the sky show through */}
+      <path d={arc} className="glass__body" />
+      {/* rim light along the outer edge and a bright streak on top */}
+      <path d={arc} className="glass__rim" />
+      <path d="M58,104 C68,66 92,42 120,40" className="glass__streak" filter="url(#glass-soft)" />
     </svg>
   );
 }
