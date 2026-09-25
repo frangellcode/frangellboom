@@ -25,16 +25,22 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      // Dev server only: React Fast Refresh injects an inline preamble and
-      // HMR talks over a websocket, both of which index.html's locked-down
-      // CSP would block. Builds keep the strict policy untouched.
+      // Dev server only: React Fast Refresh injects an inline preamble, HMR
+      // talks over a websocket, and on the iPhone the phone's own files are
+      // cross-origin — all things index.html's locked-down CSP would block.
+      // Builds keep the strict policy untouched.
       {
         name: "dev-csp",
         apply: "serve",
         transformIndexHtml: (html) =>
           html
             .replace("script-src 'self' 'wasm-unsafe-eval';", "script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline';")
-            .replace("connect-src 'self' blob:;", "connect-src 'self' blob: ws: wss:;"),
+            .replace("connect-src 'self' blob:;", "connect-src 'self' blob: ws: wss: capacitor:;")
+            // In live reload the page comes from this Mac, but videos picked
+            // on the iPhone and the loops it renders stay on the phone, at
+            // capacitor://localhost/_capacitor_file_/… — no longer 'self'.
+            .replace("media-src 'self' blob:;", "media-src 'self' blob: capacitor:;")
+            .replace("img-src 'self' data: blob:;", "img-src 'self' data: blob: capacitor:;"),
       },
       // Self-host ffmpeg-core so the app has zero third-party runtime
       // dependencies (no CDN calls) and works fully offline once installed.
