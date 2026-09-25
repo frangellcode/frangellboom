@@ -4,7 +4,11 @@
 # `npm run ios` (or any plain `cap sync`) points it back at the bundled files.
 set -e
 IP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1)
-export CAP_LIVE_URL="http://$IP:5174"
+# 5175, not the usual 5174: orobellya's dev server (another project on this
+# Mac) owns 5174 and frees it whenever it starts, which kills anything else
+# listening there.
+PORT=5175
+export CAP_LIVE_URL="http://$IP:$PORT"
 echo "Live reload at $CAP_LIVE_URL (iPhone and Mac on the same Wi-Fi)"
 npx cap sync ios
-exec npx vite --host --port 5174 --strictPort
+exec npx vite --host --port $PORT --strictPort
