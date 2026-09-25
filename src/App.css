@@ -242,7 +242,16 @@
   width: min(52vw, 220px);
   align-self: center;
   overflow: visible;
-  animation: float 6s ease-in-out infinite alternate, reveal 1s ease-out backwards;
+  animation: float 6s ease-in-out infinite alternate, glass-reveal 1s ease-out backwards;
+}
+
+/* Only fades the arc in: moving it as well would fight the float for the
+   transform and make the arc jump when the reveal lets go. */
+@keyframes glass-reveal {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+  }
 }
 
 @keyframes float {
@@ -932,15 +941,20 @@
 
 .app--intro .glass {
   animation:
-    float 6s 1.6s ease-in-out infinite alternate,
+    float 6s 1.65s ease-in-out infinite alternate,
     glass-in 1.5s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
+/* Lands exactly on the float's first frame, which takes over the moment
+   this ends — so the arc settles into its sway instead of snapping to it. */
 @keyframes glass-in {
   from {
     opacity: 0;
     transform: translateY(-70px) scale(0.88) rotate(-6deg);
     filter: blur(18px);
+  }
+  to {
+    transform: translateY(-5px) rotate(-2deg);
   }
 }
 
