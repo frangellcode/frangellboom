@@ -30,6 +30,9 @@ const MAX_SEGMENT = 2;
 // vanished the instant the export finished, which read as an abrupt cut
 // even though the result screen itself fades in underneath it.
 const OVERLAY_LEAVE_MS = 280;
+// How long a step takes to fade out before the next one fades in (see
+// .screen--leaving in App.css).
+const SCREEN_LEAVE_MS = 200;
 
 function App() {
   const t = useT();
@@ -63,6 +66,16 @@ function App() {
   const [previewClipUrl, setPreviewClipUrl] = useState<string | null>(null);
   const [preparingPreview, setPreparingPreview] = useState(false);
   const [overlayLeaving, setOverlayLeaving] = useState(false);
+  const [screenLeaving, setScreenLeaving] = useState(false);
+
+  // Between trimming and shaping the loop: the step on screen fades out
+  // first, so the next one never replaces it in a single frame.
+  const leaveTo = useCallback(async (next: Step) => {
+    setScreenLeaving(true);
+    await new Promise((resolve) => window.setTimeout(resolve, SCREEN_LEAVE_MS));
+    setScreenLeaving(false);
+    setStep(next);
+  }, []);
   const ffmpegPreload = useRef(false);
 
   // Kick off the (large) ffmpeg-core download as soon as the user lands,
@@ -189,10 +202,10 @@ function App() {
       // Non-fatal: BoomerangPreview falls back to scrubbing the original
       // file directly, just less smoothly.
     } finally {
+      await leaveTo("adjust");
       setPreparingPreview(false);
-      setStep("adjust");
     }
-  }, [source, start, clampedSegmentDuration]);
+  }, [source, start, clampedSegmentDuration, leaveTo]);
 
   const totalDuration = useMemo(
     () => totalBoomerangDuration(mode, effectiveSpeed, clampedSegmentDuration, loops),
@@ -221,7 +234,7 @@ function App() {
         )}
 
         {step === "trim" && videoUrl && (
-          <div className="screen" key="trim">
+          <div className={`screen${screenLeaving ? " screen--leaving" : ""}`} key="trim">
             {headline(t.trimEyebrow)}
             <VideoTrimmer
               videoUrl={videoUrl}
@@ -268,7 +281,7 @@ function App() {
         )}
 
         {(step === "adjust" || step === "processing") && videoUrl && (
-          <div className="screen" key="adjust">
+          <div className={`screen${screenLeaving ? " screen--leaving" : ""}`} key="adjust">
             {headline(t.adjustEyebrow)}
             <BoomerangPreview
               videoUrl={previewClipUrl ?? videoUrl}
@@ -295,7 +308,7 @@ function App() {
             {error && <p className="error">{error}</p>}
 
             <div className="actions">
-              <button type="button" className="button button--ghost" onClick={() => setStep("trim")}>
+              <button type="button" className="button button--ghost" onClick={() => leaveTo("trim")}>
                 <FadeText value={t.trimBack} trigger={lang} />
               </button>
               <button type="button" className="button button--light" onClick={handleCreate} disabled={step === "processing"}>

@@ -17,12 +17,20 @@ export function BoomerangPreview({ videoUrl, start, duration, speed, mode }: Boo
   const lang = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(true);
+  const [ready, setReady] = useState(false);
 
   useBoomerangPreview(videoRef, { sourceKey: videoUrl, start, duration, speed, mode, playing });
 
   return (
     <div className="preview">
-      <video ref={videoRef} src={videoUrl} className="preview__video" muted playsInline />
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        className={`preview__video video-fade${ready ? " video-fade--ready" : ""}`}
+        muted
+        playsInline
+        onLoadedData={() => setReady(true)}
+      />
       <span className="preview__live-badge"><FadeText value={t.live} trigger={lang} /></span>
       <button
         type="button"

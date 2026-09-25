@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 
@@ -23,6 +23,7 @@ export function VideoTrimmer({
   const lang = useLanguage();
   const trackRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
   const dragRef = useRef<{ pointerId: number; offsetStart: number } | null>(null);
 
   const clampStart = useCallback(
@@ -117,9 +118,10 @@ export function VideoTrimmer({
         <video
           ref={videoRef}
           src={videoUrl}
-          className="trimmer__video"
+          className={`trimmer__video video-fade${ready ? " video-fade--ready" : ""}`}
           muted
           playsInline
+          onLoadedData={() => setReady(true)}
           onLoadedMetadata={(e) => {
             onDurationChange(e.currentTarget.duration);
             e.currentTarget.currentTime = start;
