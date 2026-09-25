@@ -478,7 +478,10 @@
   overflow: hidden;
 }
 
+/* Its aspect-ratio comes from the source (set inline), so the box has its
+   final size before the video loads. */
 .trimmer__video {
+  display: block;
   width: 100%;
   max-height: 44svh;
   object-fit: contain;
@@ -601,6 +604,7 @@
 }
 
 .preview__video {
+  display: block;
   width: 100%;
   max-height: 32svh;
   object-fit: contain;

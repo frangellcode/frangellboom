@@ -6,13 +6,15 @@ import type { Mode, Speed } from "../lib/boomerang";
 
 interface BoomerangPreviewProps {
   videoUrl: string;
+  /** Width / height, known before the video loads (see probeAspect). */
+  aspect: number;
   start: number;
   duration: number;
   speed: Speed;
   mode: Mode;
 }
 
-export function BoomerangPreview({ videoUrl, start, duration, speed, mode }: BoomerangPreviewProps) {
+export function BoomerangPreview({ videoUrl, aspect, start, duration, speed, mode }: BoomerangPreviewProps) {
   const t = useT();
   const lang = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -27,6 +29,7 @@ export function BoomerangPreview({ videoUrl, start, duration, speed, mode }: Boo
         ref={videoRef}
         src={videoUrl}
         className={`preview__video video-fade${ready ? " video-fade--ready" : ""}`}
+        style={{ aspectRatio: aspect }}
         muted
         playsInline
         onLoadedData={() => setReady(true)}

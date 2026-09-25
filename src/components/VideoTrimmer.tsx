@@ -4,6 +4,8 @@ import { FadeText } from "./FadeText";
 
 interface VideoTrimmerProps {
   videoUrl: string;
+  /** Width / height, known before the video loads (see probeAspect). */
+  aspect: number;
   duration: number;
   start: number;
   segmentDuration: number;
@@ -13,6 +15,7 @@ interface VideoTrimmerProps {
 
 export function VideoTrimmer({
   videoUrl,
+  aspect,
   duration,
   start,
   segmentDuration,
@@ -119,6 +122,7 @@ export function VideoTrimmer({
           ref={videoRef}
           src={videoUrl}
           className={`trimmer__video video-fade${ready ? " video-fade--ready" : ""}`}
+          style={{ aspectRatio: aspect }}
           muted
           playsInline
           onLoadedData={() => setReady(true)}

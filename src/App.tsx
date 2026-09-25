@@ -15,7 +15,7 @@ import { createBoomerang, type Resolution, type Speed, type Mode } from "./lib/b
 import { extractPreviewClip } from "./lib/previewClip";
 import { totalBoomerangDuration, deriveLoops } from "./lib/boomerangMath";
 import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
-import type { VideoSource } from "./lib/videoSource";
+import { probeAspect, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
 import { createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
 import "./App.css";
@@ -53,6 +53,8 @@ function App() {
     if (step !== "upload" && intro === "playing") setIntro("done");
   }, [step, intro]);
   const [source, setSource] = useState<VideoSource | null>(null);
+  // Width / height of the source, so its box is laid out before it loads.
+  const [aspect, setAspect] = useState(9 / 16);
   const videoUrl = source?.url ?? null;
   const [duration, setDuration] = useState(0);
   const [start, setStart] = useState(0);
@@ -102,7 +104,9 @@ function App() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [step]);
 
-  const handleSelect = useCallback((selected: VideoSource) => {
+  const handleSelect = useCallback(async (selected: VideoSource) => {
+    const probed = await probeAspect(selected.url);
+    setAspect(probed ?? 9 / 16);
     setError(null);
     setSource((prev) => {
       if (prev) releaseSource(prev);
@@ -238,6 +242,7 @@ function App() {
             {headline(t.trimEyebrow)}
             <VideoTrimmer
               videoUrl={videoUrl}
+              aspect={aspect}
               duration={duration}
               start={start}
               segmentDuration={clampedSegmentDuration}
@@ -285,6 +290,7 @@ function App() {
             {headline(t.adjustEyebrow)}
             <BoomerangPreview
               videoUrl={previewClipUrl ?? videoUrl}
+              aspect={aspect}
               start={previewClipUrl ? 0 : start}
               duration={clampedSegmentDuration}
               speed={effectiveSpeed}
