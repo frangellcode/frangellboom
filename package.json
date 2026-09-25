@@ -13,7 +13,8 @@
     "deploy": "gh-pages -d dist",
     "ios": "npm run build:ios && cap sync ios && open ios/App/Frangellboom.xcworkspace",
     "ios-assets": "node scripts/generate-ios-assets.mjs",
-    "build:ios": "tsc -b && vite build --mode ios"
+    "build:ios": "tsc -b && vite build --mode ios",
+    "store-screenshots": "node scripts/frame-screenshots.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",

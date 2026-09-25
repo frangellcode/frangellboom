@@ -96,7 +96,7 @@ En cada una:
 
 ## 7. Ficha de la tienda
 
-**Capturas (obligatorio):** ya están hechas, en tamaño iPhone 6.9" (1320 × 2868): `docs/screenshots/en/` para English (U.S.) y `docs/screenshots/es/` para Spanish. Son 5 (inicio, recorte, modos, exportando, resultado) y usan un video generado para la app, sin contenido ni marcas de terceros. En App Store Connect, dentro de cada idioma, arrástralas en orden a **iPhone 6.9" Display**.
+**Capturas (obligatorio):** ya están hechas en tamaño iPhone 6.9" (1320 × 2868), sin transparencia, con el mismo estilo que las de PolarGrid (título arriba y la app en un teléfono): `docs/screenshots/app-store/English/` para English (U.S.) y `docs/screenshots/app-store/Español/` para Spanish. En App Store Connect, dentro de cada idioma, arrástralas en orden (1 → 5) a **iPhone 6.9" Display**. Usan un video generado para la app, sin contenido ni marcas de terceros. Las capturas sin marco están en `docs/screenshots/en|es/`; si cambias textos o capturas, regenera con `npm run store-screenshots` (`scripts/frame-screenshots.mjs`).
 
 **Subtitle (máx. 30):** EN `Back-and-forth video loops` · ES `Bucles de video ida y vuelta`
 
