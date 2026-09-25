@@ -332,7 +332,7 @@ function App() {
 
         {step === "result" && result && (
           <div className="screen" key="result">
-            <ResultView result={result} onReset={handleReset} />
+            <ResultView result={result} aspect={aspect} onReset={handleReset} />
           </div>
         )}
       </main>

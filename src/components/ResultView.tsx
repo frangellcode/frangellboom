@@ -10,6 +10,8 @@ import { Headline } from "./Headline";
 export type LoopResult = { blob: Blob } | { url: string; uri: string };
 
 interface ResultViewProps {
+  /** Width / height, known before the video loads (see probeAspect). */
+  aspect: number;
   result: LoopResult;
   onReset: () => void;
 }
@@ -19,7 +21,7 @@ interface ResultViewProps {
 // from under it, instead of "Crear otro" cutting straight back to "upload".
 const LEAVE_MS = 250;
 
-export function ResultView({ result, onReset }: ResultViewProps) {
+export function ResultView({ result, aspect, onReset }: ResultViewProps) {
   const t = useT();
   const lang = useLanguage();
   // Create and revoke the object URL inside the same effect (rather than a
@@ -28,6 +30,7 @@ export function ResultView({ result, onReset }: ResultViewProps) {
   // that mismatch was leaving `url` pointing at a dead blob in dev mode.
   const [url, setUrl] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!("blob" in result)) {
       setUrl(result.url);
@@ -57,7 +60,16 @@ export function ResultView({ result, onReset }: ResultViewProps) {
   return (
     <div className={`result${leaving ? " result--leaving" : ""}`}>
       <Headline text={t.ready} />
-      <video src={url} className="result__video" autoPlay loop muted playsInline />
+      <video
+        src={url}
+        className={`result__video video-fade${ready ? " video-fade--ready" : ""}`}
+        style={{ aspectRatio: aspect }}
+        autoPlay
+        loop
+        muted
+        playsInline
+        onLoadedData={() => setReady(true)}
+      />
       <div className="actions actions--stacked">
         {isNativeApp ? (
           <button type="button" className="button button--light" onClick={handleNativeSave}>
