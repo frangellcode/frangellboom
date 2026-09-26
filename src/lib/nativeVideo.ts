@@ -58,9 +58,11 @@ interface CameraPlugin {
 /** ios/App/App/CameraPlugin.swift */
 const Camera = registerPlugin<CameraPlugin>("Camera");
 
-/** Longest clip the camera records: exactly the longest segment a loop uses
- *  (2 s), so a recording goes straight to shaping the loop, no trimming. */
-export const MAX_RECORDING_SECONDS = 2;
+/** Longest clip the camera records, as Instagram's boomerang does: 0.75 s,
+ *  which in slow motion is a 3 s there-and-back played four times (12 s),
+ *  and at normal speed 1.5 s eight times. A recording is the whole segment,
+ *  so it goes straight to shaping the loop, no trimming. */
+export const MAX_RECORDING_SECONDS = 0.75;
 
 /** Opens the app's own camera. Resolves to null if the person closes it
  *  without recording; rejects with code "DENIED" when camera access is off. */
