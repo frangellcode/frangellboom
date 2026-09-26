@@ -35,7 +35,7 @@ export const PRO_RESOLUTIONS: readonly Resolution[] = ["original", "1440"];
 // The web version has no App Store to buy from, so it's all unlocked there.
 // The app starts locked and asks StoreKit on every launch — nothing is
 // cached, so a refund or a new phone is simply whatever StoreKit says.
-let state = { isPro: !isNativeApp, paywallOpen: false };
+let state = { isPro: !isNativeApp, paywallOpen: false, sheetOnScreen: false };
 const listeners = new Set<() => void>();
 
 function set(next: Partial<typeof state>) {
@@ -51,6 +51,8 @@ function subscribe(listener: () => void) {
 export const setPro = (isPro: boolean) => set({ isPro });
 export const openPaywall = () => set({ paywallOpen: true });
 export const closePaywall = () => set({ paywallOpen: false });
+/** ProSheet reports when it's on screen at all, including its close. */
+export const setSheetOnScreen = (sheetOnScreen: boolean) => set({ sheetOnScreen });
 
 export function useIsPro(): boolean {
   return useSyncExternalStore(subscribe, () => state.isPro);
@@ -58,6 +60,12 @@ export function useIsPro(): boolean {
 
 export function usePaywallOpen(): boolean {
   return useSyncExternalStore(subscribe, () => state.paywallOpen);
+}
+
+/** True from the moment the Pro sheet starts opening until it has finished
+ *  closing — the live preview rests for that long (see BoomerangPreview). */
+export function useSheetOnScreen(): boolean {
+  return useSyncExternalStore(subscribe, () => state.sheetOnScreen);
 }
 
 export function initPro() {

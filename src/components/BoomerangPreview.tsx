@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { useBoomerangPreview } from "../hooks/useBoomerangPreview";
+import { useSheetOnScreen } from "../lib/pro";
 import type { Mode, Speed } from "../lib/boomerang";
 
 interface BoomerangPreviewProps {
@@ -21,7 +22,11 @@ export function BoomerangPreview({ videoUrl, aspect, start, duration, speed, mod
   const [playing, setPlaying] = useState(true);
   const [ready, setReady] = useState(false);
 
-  useBoomerangPreview(videoRef, { sourceKey: videoUrl, start, duration, speed, mode, playing });
+  // Rests while the Pro sheet is up (it's covered anyway): seeking the video
+  // every frame underneath made the sheet's own animation stutter.
+  const sheetOnScreen = useSheetOnScreen();
+
+  useBoomerangPreview(videoRef, { sourceKey: videoUrl, start, duration, speed, mode, playing: playing && !sheetOnScreen });
 
   return (
     <div className="preview">

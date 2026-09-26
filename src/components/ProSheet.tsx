@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { closePaywall, Pro, setPro, usePaywallOpen, type ProProduct } from "../lib/pro";
+import { closePaywall, Pro, setPro, setSheetOnScreen, usePaywallOpen, type ProProduct } from "../lib/pro";
 import { useT } from "../lib/i18n";
 
 // Matches the close transition in App.css (.prosheet__backdrop).
-const CLOSE_MS = 280;
+const CLOSE_MS = 300;
 
 type Note = "unlocked" | "pending" | "failed" | "nothingToRestore" | null;
 
@@ -33,6 +33,10 @@ export function ProSheet() {
     const observer = new ResizeObserver(measure);
     observer.observe(content);
     return () => observer.disconnect();
+  }, [mounted]);
+
+  useEffect(() => {
+    setSheetOnScreen(mounted);
   }, [mounted]);
 
   useEffect(() => {

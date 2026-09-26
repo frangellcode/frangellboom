@@ -861,11 +861,12 @@
 
 /* ---------- Frangellboom Pro (iOS app) ---------- */
 
-/* Opening, the screen behind dims and softens while the card rises into
+/* Opening, the screen behind dims while the card rises into
    place and settles; closing is the same in reverse, a little quicker.
    (Each state's transition is the one used on the way INTO it, so the
    base rules time the close and --visible times the open. CLOSE_MS in
-   ProSheet.tsx waits for the close.) */
+   ProSheet.tsx waits for the close.) No backdrop blur: re-blurring the
+   live preview under it every frame made the close stutter on the phone. */
 .prosheet {
   position: fixed;
   inset: 0;
@@ -884,11 +885,10 @@
 .prosheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.62);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.72);
   opacity: 0;
-  transition: opacity 0.26s ease-in;
+  transition: opacity 0.28s ease-out;
+  will-change: opacity;
 }
 
 .prosheet--visible .prosheet__backdrop {
@@ -907,8 +907,9 @@
   opacity: 0;
   transform: translateY(18px) scale(0.96);
   transition:
-    opacity 0.2s ease-in,
-    transform 0.26s cubic-bezier(0.4, 0, 1, 1);
+    opacity 0.24s ease-out,
+    transform 0.28s cubic-bezier(0.3, 0, 0.2, 1);
+  will-change: opacity, transform;
 }
 
 .prosheet--visible .prosheet__card {
