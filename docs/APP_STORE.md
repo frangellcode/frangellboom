@@ -6,7 +6,7 @@ Esta guía va desde "tengo la cuenta de Apple Developer" hasta "la app está en 
 - **Bundle ID:** `com.frangellcode.frangellboom`
 - **Team:** Frangell Vasquez (9S78N8546T)
 - **Frangellboom Pro (IAP no consumible):** `com.frangellcode.frangellboom.pro` → $2.99
-  - Desbloquea los modos Ease, Freeze, Pulse y Zoom, la calidad Original y 2K, y exportar sin marca de agua. Lo demás es gratis.
+  - Desbloquea los modos Ease, Freeze, Pulse y Zoom, la calidad 4K y 2K (en la app, la opción "Original", que conserva hasta 4K), y exportar sin marca de agua. Lo demás es gratis.
 - **Política de privacidad:** https://frangellcode.github.io/frangellboom/privacy.html
 - **Soporte:** https://frangellcode.github.io/frangellboom/support.html
 
@@ -74,9 +74,9 @@ Antes: **Business → Agreements** → acepta el **Paid Apps Agreement** (con ba
 | Non-Consumable | Frangellboom Pro | `com.frangellcode.frangellboom.pro` | $2.99 |
 
 - **Availability:** todos los países. **Price Schedule:** $2.99.
-- **Localization:** EN *Frangellboom Pro* / "Every mode, Original and 2K quality, no watermark. One purchase, yours forever." · ES *Frangellboom Pro* / "Todos los modos, calidad Original y 2K, sin marca de agua. Un solo pago, para siempre."
+- **Localization:** EN *Frangellboom Pro* / "Every mode, 4K and 2K quality, no watermark. One purchase, yours forever." · ES *Frangellboom Pro* / "Todos los modos, calidad 4K y 2K, sin marca de agua. Un solo pago, para siempre."
 - **Review Screenshot:** una captura de la ventana "Frangellboom Pro" con el precio.
-- **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, Original and 2K export quality, and exporting without the watermark. Restore purchases is in the same sheet.`
+- **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, 4K (the "Original" option) and 2K export quality, and exporting without the watermark. Restore purchases is in the same sheet.`
 
 ## 5. Privacidad
 
@@ -124,7 +124,7 @@ FULL QUALITY
 PRIVATE BY DESIGN
 Every video is processed on your iPhone. No account, no uploads, no tracking. Works with no internet connection.
 
-Free to use. Frangellboom Pro, a one-time purchase with no subscription, unlocks the Ease, Freeze, Pulse and Zoom modes, Original and 2K quality, and exports without the watermark.
+Free to use. Frangellboom Pro, a one-time purchase with no subscription, unlocks the Ease, Freeze, Pulse and Zoom modes, 4K and 2K quality, and exports without the watermark.
 ```
 
 **Description (ES):**
@@ -152,7 +152,7 @@ CALIDAD MÁXIMA
 PRIVADA POR DISEÑO
 Cada video se procesa en tu iPhone. Sin cuenta, sin subidas, sin rastreo. Funciona sin internet.
 
-Gratis. Frangellboom Pro, un solo pago y sin suscripción, desbloquea los modos Ease, Freeze, Pulse y Zoom, la calidad Original y 2K, y exportar sin marca de agua.
+Gratis. Frangellboom Pro, un solo pago y sin suscripción, desbloquea los modos Ease, Freeze, Pulse y Zoom, la calidad 4K y 2K, y exportar sin marca de agua.
 ```
 
 **Keywords (máx. 100, sin espacios después de las comas):**
