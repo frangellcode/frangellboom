@@ -859,9 +859,9 @@
   background: #0d0d0d;
 }
 
-/* ---------- tip jar (iOS app) ---------- */
+/* ---------- Frangellboom Pro (iOS app) ---------- */
 
-.tipjar {
+.prosheet {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -874,22 +874,22 @@
   transition: opacity 0.2s ease;
 }
 
-.tipjar--visible {
+.prosheet--visible {
   opacity: 1;
   pointer-events: auto;
 }
 
-.tipjar__backdrop {
+.prosheet__backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
 }
 
-.tipjar__card {
+.prosheet__card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
   max-width: 340px;
   padding: 20px;
@@ -898,64 +898,67 @@
   color: var(--ink);
 }
 
-.tipjar__title {
-  font-size: 20px;
-  line-height: 1.4;
+.prosheet__title {
+  font-family: var(--poster);
+  font-size: 30px;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
-.tipjar__body,
-.tipjar__status {
+.prosheet__body,
+.prosheet__status {
   color: rgba(27, 27, 27, 0.65);
   font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
 }
 
-.tipjar__message {
+.prosheet__features {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 6px;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.prosheet__features li::before {
+  content: "✓";
+  margin-right: 8px;
+}
+
+.prosheet__message {
   font-size: 16px;
 }
 
-.tipjar__products {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tipjar__product {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: var(--radius-button);
-  background: var(--whiteout);
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.tipjar__product strong {
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.tipjar__product:active {
-  opacity: 0.55;
-}
-
-.tipjar__product--dimmed {
-  opacity: 0.4;
-}
-
-.tipjar__products .error {
-  color: var(--ink);
-  border-color: rgba(0, 0, 0, 0.1);
-}
-
-.tipjar__close {
+.prosheet__wide {
   width: 100%;
+}
+
+.prosheet__buy {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--haze);
+}
+
+.prosheet__not-now {
+  color: rgba(27, 27, 27, 0.65);
+}
+
+/* A Pro option for someone without Pro: still there to see, with a small
+   lock, and tapping it opens the Pro sheet. */
+.chip--locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(27, 27, 27, 0.5);
+}
+
+.chip__lock {
+  width: 10px;
+  height: 10px;
 }
 
 /* ---------- cold-start intro ---------- */

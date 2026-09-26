@@ -32,6 +32,8 @@ interface LoopEnginePlugin {
     speed: Speed;
     loops: number;
     shortSide?: number;
+    /** The free version's mark in the corner (see Watermark in LoopEnginePlugin.swift). */
+    watermark?: boolean;
   }): Promise<RenderedFile>;
   preview(options: { path: string; start: number; duration: number }): Promise<RenderedFile>;
   addListener(event: "progress", listener: (data: { fraction: number }) => void): Promise<{ remove(): Promise<void> }>;
@@ -93,7 +95,7 @@ const SHORT_SIDE: Record<Resolution, number | undefined> = {
  *  webview's memory limits. */
 export async function createLoopNatively(
   source: VideoSource,
-  options: { start: number; duration: number; mode: Mode; speed: Speed; loops: number; resolution: Resolution },
+  options: { start: number; duration: number; mode: Mode; speed: Speed; loops: number; resolution: Resolution; watermark: boolean },
   onProgress: (fraction: number) => void,
 ): Promise<RenderedFile> {
   if (!source.path) throw new Error("The video isn't on disk.");
@@ -107,6 +109,7 @@ export async function createLoopNatively(
       speed: options.speed,
       loops: options.loops,
       shortSide: SHORT_SIDE[options.resolution],
+      watermark: options.watermark,
     });
   } finally {
     await listener.remove();

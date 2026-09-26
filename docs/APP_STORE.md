@@ -5,14 +5,12 @@ Esta guía va desde "tengo la cuenta de Apple Developer" hasta "la app está en 
 - **Nombre:** Frangellboom
 - **Bundle ID:** `com.frangellcode.frangellboom`
 - **Team:** Frangell Vasquez (9S78N8546T)
-- **Propinas (IAP consumibles):**
-  - `com.frangellcode.frangellboom.tip.small` → $0.99
-  - `com.frangellcode.frangellboom.tip.medium` → $2.99
-  - `com.frangellcode.frangellboom.tip.large` → $4.99
+- **Frangellboom Pro (IAP no consumible):** `com.frangellcode.frangellboom.pro` → $2.99
+  - Desbloquea los modos Ease, Freeze, Pulse y Zoom, la calidad Original y 2K, y exportar sin marca de agua. Lo demás es gratis.
 - **Política de privacidad:** https://frangellcode.github.io/frangellboom/privacy.html
 - **Soporte:** https://frangellcode.github.io/frangellboom/support.html
 
-> Si cambias el Bundle ID, cámbialo también en `capacitor.config.ts`, en `src/lib/tipJar.ts`, en `ios/App/App/Frangellboom.storekit` y en Xcode, **antes** de crear la app en App Store Connect: después ya no se puede cambiar.
+> Si cambias el Bundle ID, cámbialo también en `capacitor.config.ts`, en `src/lib/pro.ts`, en `ios/App/App/ProPlugin.swift`, en `ios/App/App/Frangellboom.storekit` y en Xcode, **antes** de crear la app en App Store Connect: después ya no se puede cambiar.
 
 ---
 
@@ -24,7 +22,7 @@ Esta guía va desde "tengo la cuenta de Apple Developer" hasta "la app está en 
 | Se actualizaba sola con un service worker | **2.5.2** | En iOS no hay service worker ni botón de actualizar. El build de iOS (`npm run build:ios`) ni siquiera lo incluye. |
 | Necesitaba internet la primera vez (descargaba ffmpeg de ~32 MB) | **2.1** / **4.2** | En iOS no se usa ffmpeg: todo va dentro de la app y funciona sin conexión desde el primer arranque. |
 | "Boomerang" es una marca de Instagram/Meta, e "Instagram" aparecía en el manifest | **5.2.1** / **5.2.5** | Dentro de la app y en la ficha se dice **"bucle" / "loop"**. El manifest y el README ya no mencionan Instagram. **No** escribas "Boomerang" ni "Instagram" en el nombre, el subtítulo, las palabras clave ni las capturas. |
-| Enlace de PayPal para donar dentro de la app | **3.1.1** | En iOS se reemplaza por **"Deja una propina"**: tres compras dentro de la app, consumibles, que no desbloquean nada (StoreKit 2). En la web, PayPal sigue igual. |
+| Enlace de PayPal para donar dentro de la app | **3.1.1** | En iOS no hay enlace de pago: en su lugar, **Frangellboom Pro**, una compra dentro de la app no consumible (StoreKit 2) con su botón de **Restaurar compras**. En la web todo está desbloqueado y PayPal sigue igual. |
 | Faltaban los textos de permiso de Fotos (sin ellos la app se cierra) | **5.1.1** | `NSPhotoLibraryUsageDescription` y `NSPhotoLibraryAddUsageDescription` en inglés y español. |
 | Manifiesto de privacidad | Obligatorio desde 2024 | `PrivacyInfo.xcprivacy`: sin rastreo y sin recopilar datos. |
 | Pregunta de cifrado en cada subida | Exportación | `ITSAppUsesNonExemptEncryption = NO`. |
@@ -46,9 +44,9 @@ Compila la web para iOS, la copia al proyecto y abre **Frangellboom.xcworkspace*
 En Xcode, arriba elige tu iPhone ("@Frangellgram") y pulsa ▶︎. Prueba:
 - Importar un video de tu fototeca (4K, vertical, HDR…).
 - Todos los modos y calidades, y **Guardar o compartir → Guardar video** (la primera vez pide permiso para Fotos).
-- El botón EN/ES y **Deja una propina**.
+- El botón EN/ES y **Hazte Pro** (y los candados de los modos y calidades Pro).
 
-**Probar las propinas:** ejecútalas con ▶︎ desde Xcode (el scheme usa `Frangellboom.storekit`, una tienda de prueba donde no se cobra nada). Si abres la app de otra forma, las propinas salen como "no disponibles" hasta que existan en App Store Connect.
+**Probar Pro:** ejecútalo con ▶︎ desde Xcode (el scheme usa `Frangellboom.storekit`, una tienda de prueba donde no se cobra nada; para "quitarte" Pro: **Debug → StoreKit → Manage Transactions** y borra la compra). Si abres la app de otra forma, Pro sale como "no disponible" hasta que exista en App Store Connect.
 
 ## 2. Acuerdos, impuestos y banco
 
@@ -65,21 +63,20 @@ Ya lo hiciste para PolarGrid: el acuerdo **Paid Apps** vale para todas tus apps.
    - User Access: Full Access
 2. Agrega el español: **App Information → Localizable Information → Spanish (Mexico)** (o *Spain*).
 
-## 4. Crear las propinas
+## 4. Crear Frangellboom Pro
 
-**Monetization → In-App Purchases → "+"**, tres veces:
+Antes: **Business → Agreements** → acepta el **Paid Apps Agreement** (con banco e impuestos), si no las compras no funcionan.
+
+**Monetization → In-App Purchases → "+"**:
 
 | Type | Reference Name | Product ID | Precio |
 |---|---|---|---|
-| Consumable | Small tip | `com.frangellcode.frangellboom.tip.small` | $0.99 |
-| Consumable | Medium tip | `com.frangellcode.frangellboom.tip.medium` | $2.99 |
-| Consumable | Large tip | `com.frangellcode.frangellboom.tip.large` | $4.99 |
+| Non-Consumable | Frangellboom Pro | `com.frangellcode.frangellboom.pro` | $2.99 |
 
-En cada una:
-- **Availability:** todos los países. **Price Schedule:** el precio de la tabla.
-- **Localization:** EN *Small tip* / "A small thank-you. Unlocks nothing." · ES *Propina pequeña* / "Un pequeño gracias. No desbloquea nada." (lo mismo con *Medium/mediana* y *Large/grande*).
-- **Review Screenshot:** una captura de la ventana "Apoya a Frangellboom" con los precios.
-- **Review Notes:** `Optional tip. Consumable, unlocks no content or features.`
+- **Availability:** todos los países. **Price Schedule:** $2.99.
+- **Localization:** EN *Frangellboom Pro* / "Every mode, Original and 2K quality, no watermark. One purchase, yours forever." · ES *Frangellboom Pro* / "Todos los modos, calidad Original y 2K, sin marca de agua. Un solo pago, para siempre."
+- **Review Screenshot:** una captura de la ventana "Frangellboom Pro" con el precio.
+- **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, Original and 2K export quality, and exporting without the watermark. Restore purchases is in the same sheet.`
 
 ## 5. Privacidad
 
@@ -127,7 +124,7 @@ FULL QUALITY
 PRIVATE BY DESIGN
 Every video is processed on your iPhone. No account, no uploads, no tracking. Works with no internet connection.
 
-Free, with no watermark and nothing locked. If you enjoy it, you can leave an optional tip.
+Free to use. Frangellboom Pro, a one-time purchase with no subscription, unlocks the Ease, Freeze, Pulse and Zoom modes, Original and 2K quality, and exports without the watermark.
 ```
 
 **Description (ES):**
@@ -155,7 +152,7 @@ CALIDAD MÁXIMA
 PRIVADA POR DISEÑO
 Cada video se procesa en tu iPhone. Sin cuenta, sin subidas, sin rastreo. Funciona sin internet.
 
-Gratis, sin marca de agua y sin nada bloqueado. Si te gusta, puedes dejar una propina opcional.
+Gratis. Frangellboom Pro, un solo pago y sin suscripción, desbloquea los modos Ease, Freeze, Pulse y Zoom, la calidad Original y 2K, y exportar sin marca de agua.
 ```
 
 **Keywords (máx. 100, sin espacios después de las comas):**
@@ -176,14 +173,14 @@ ES `bucle,video en bucle,ida y vuelta,reversa,rebobinar,cámara lenta,rebote,hdr
 ## 9. Enviar a revisión
 
 1. **Build → "+"** → el build subido.
-2. **In-App Purchases → "+"** → las 3 propinas (la primera vez **tienen que ir con la app**).
+2. **In-App Purchases → "+"** → Frangellboom Pro (la primera vez **tiene que ir con la app**).
 3. **App Review Information** → Sign-in required: **No** → **Notes:**
    ```
    Frangellboom turns a short segment of a video into a back-and-forth loop. All video processing happens on-device with AVFoundation; the app has no backend, no accounts and collects no data.
 
    To test: tap "Import your video", pick any video, choose a segment, tap Next, then "Create loop". Tap "Save or share" → "Save Video" to save it to Photos.
 
-   "Leave a tip" at the bottom of the home screen opens a tip jar with three consumable in-app purchases. Tips are optional and unlock no content or features.
+   Frangellboom Pro is a non-consumable in-app purchase. "Go Pro" at the bottom of the home screen, or tapping any option with a lock (the Ease, Freeze, Pulse and Zoom modes; Original and 2K quality), opens the Pro sheet with the price, Buy and Restore purchases. Without Pro, exports carry a small "Frangellboom" watermark.
    ```
 4. **Add for Review → Submit for Review.** Suele tardar 24–48 h. Si hay rechazo, responde en el **Resolution Center**.
 

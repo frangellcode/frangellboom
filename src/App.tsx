@@ -18,6 +18,8 @@ import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
 import { probeVideo, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
 import { createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
+import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "./lib/pro";
+import { ProSheet } from "./components/ProSheet";
 import "./App.css";
 
 type Step = "upload" | "trim" | "adjust" | "processing" | "result";
@@ -62,6 +64,15 @@ function App() {
   const [speed, setSpeed] = useState<Speed>(1);
   const [mode, setMode] = useState<Mode>("classic");
   const [resolution, setResolution] = useState<Resolution>("original");
+  const isPro = useIsPro();
+
+  // Without Pro, a Pro choice falls back to the best free one: Classic, and
+  // 1080p. (Original is the default for someone with Pro.)
+  useEffect(() => {
+    if (isPro) return;
+    if (PRO_MODES.includes(mode)) setMode("classic");
+    if (PRO_RESOLUTIONS.includes(resolution)) setResolution("1080");
+  }, [isPro, mode, resolution]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<LoopResult | null>(null);
@@ -193,7 +204,7 @@ function App() {
     try {
       const options = { start, duration: clampedSegmentDuration, loops, resolution, speed: effectiveSpeed, mode };
       if (isNativeApp) {
-        const { webPath, uri } = await createLoopNatively(source, options, setProgress);
+        const { webPath, uri } = await createLoopNatively(source, { ...options, watermark: !isPro }, setProgress);
         setResult({ url: webPath, uri });
       } else {
         const blob = await withFFmpeg((ffmpeg) => createBoomerang(ffmpeg, source, { ...options, onProgress: setProgress }));
@@ -215,7 +226,7 @@ function App() {
       if (!isNativeApp) resetFFmpeg().catch(() => {});
       releaseWakeLock();
     }
-  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t]);
+  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, isPro]);
 
   const handleGoToAdjust = useCallback(async () => {
     if (!source) return;
@@ -372,6 +383,7 @@ function App() {
           </div>
         )}
       </main>
+      {isNativeApp && <ProSheet />}
     </div>
   );
 }
