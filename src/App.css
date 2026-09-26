@@ -861,6 +861,11 @@
 
 /* ---------- Frangellboom Pro (iOS app) ---------- */
 
+/* Opening, the screen behind dims and softens while the card rises into
+   place and settles; closing is the same in reverse, a little quicker.
+   (Each state's transition is the one used on the way INTO it, so the
+   base rules time the close and --visible times the open. CLOSE_MS in
+   ProSheet.tsx waits for the close.) */
 .prosheet {
   position: fixed;
   inset: 0;
@@ -869,33 +874,65 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
 }
 
 .prosheet--visible {
-  opacity: 1;
   pointer-events: auto;
 }
 
 .prosheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.26s ease-in;
+}
+
+.prosheet--visible .prosheet__backdrop {
+  opacity: 1;
+  transition: opacity 0.4s ease-out;
 }
 
 .prosheet__card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
   width: 100%;
   max-width: 340px;
-  padding: 20px;
+  overflow: hidden;
   border-radius: var(--radius-card);
   background: var(--haze);
   color: var(--ink);
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+  transition:
+    opacity 0.2s ease-in,
+    transform 0.26s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.prosheet--visible .prosheet__card {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.32s ease-out 0.04s,
+    transform 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+    height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The padding lives here so the card's height is exactly this box's. */
+.prosheet__content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+/* A new line inside (thanks, pending, not found) fades in rather than
+   appearing in a single frame. */
+.prosheet__message,
+.prosheet__status {
+  animation: fade-in 0.3s ease-out backwards;
 }
 
 .prosheet__title {

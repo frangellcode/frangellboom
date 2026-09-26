@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { closePaywall, Pro, setPro, usePaywallOpen, type ProProduct } from "../lib/pro";
 import { useT } from "../lib/i18n";
 
-const CLOSE_MS = 250;
+// Matches the close transition in App.css (.prosheet__backdrop).
+const CLOSE_MS = 280;
 
 type Note = "unlocked" | "pending" | "failed" | "nothingToRestore" | null;
 
@@ -19,6 +20,20 @@ export function ProSheet() {
   const [product, setProduct] = useState<ProProduct | "loading" | "unavailable">("loading");
   const [busy, setBusy] = useState<"buying" | "restoring" | null>(null);
   const [note, setNote] = useState<Note>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
+
+  // The card eases to its new height when what's inside changes (a note
+  // appears, the buttons turn into Done) instead of jumping to it.
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const measure = () => setHeight(content.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [mounted]);
 
   useEffect(() => {
     if (open) {
@@ -32,7 +47,11 @@ export function ProSheet() {
 
   useEffect(() => {
     if (!mounted || !open) return;
-    const raf = requestAnimationFrame(() => setVisible(true));
+    // Two frames: the closed state has to be on screen once before the
+    // switch, or the browser skips straight to open with no transition.
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setVisible(true));
+    });
     return () => cancelAnimationFrame(raf);
   }, [mounted, open]);
 
@@ -91,7 +110,14 @@ export function ProSheet() {
   return (
     <div className={`prosheet${visible ? " prosheet--visible" : ""}`}>
       <div className="prosheet__backdrop" onClick={busy ? undefined : closePaywall} />
-      <div className="prosheet__card" role="dialog" aria-modal="true" aria-label={t.pro.title}>
+      <div
+        className="prosheet__card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.pro.title}
+        style={height === null ? undefined : { height }}
+      >
+        <div ref={contentRef} className="prosheet__content">
         <p className="prosheet__title">{t.pro.title}</p>
         <p className="prosheet__body">{t.pro.subtitle}</p>
         <ul className="prosheet__features">
@@ -100,23 +126,29 @@ export function ProSheet() {
           ))}
         </ul>
         {note && <p className={note === "unlocked" ? "prosheet__message" : "prosheet__status"}>{t.pro[note]}</p>}
-        {product === "unavailable" && !unlocked && <p className="prosheet__status">{t.pro.unavailable}</p>}
+
         {unlocked ? (
           <button type="button" className="button button--ink prosheet__wide" onClick={closePaywall}>
             {t.pro.done}
           </button>
         ) : (
           <>
-            {product !== "unavailable" && (
-              <button
-                type="button"
-                className="button prosheet__buy prosheet__wide"
-                onClick={buy}
-                disabled={!price || busy !== null}
-              >
-                {busy === "buying" ? "…" : price ? t.pro.unlock(price) : t.pro.loadingPrice}
-              </button>
-            )}
+            {/* Loading, the price, or not available: always the same button,
+                so the card doesn't change size while the App Store answers. */}
+            <button
+              type="button"
+              className="button prosheet__buy prosheet__wide"
+              onClick={buy}
+              disabled={!price || busy !== null}
+            >
+              {busy === "buying"
+                ? "…"
+                : price
+                  ? t.pro.unlock(price)
+                  : product === "unavailable"
+                    ? t.pro.unavailable
+                    : t.pro.loadingPrice}
+            </button>
             <button type="button" className="button button--ink prosheet__wide" onClick={restore} disabled={busy !== null}>
               {busy === "restoring" ? t.pro.restoring : t.pro.restore}
             </button>
@@ -125,6 +157,7 @@ export function ProSheet() {
             </button>
           </>
         )}
+        </div>
       </div>
     </div>
   );
