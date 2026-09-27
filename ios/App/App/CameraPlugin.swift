@@ -62,7 +62,12 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
                     }
                     call.resolve(["video": ["webPath": webPath, "path": url.path, "name": "Recording.mov"]])
                 }
-                camera.modalPresentationStyle = .fullScreen
+                // Over, not instead of, the web app: with .fullScreen iOS
+                // takes the webview off screen and stops drawing it, so the
+                // editor couldn't be put in place underneath (and a wait
+                // for its next frame never ended).
+                camera.modalPresentationStyle = .overFullScreen
+                camera.modalPresentationCapturesStatusBarAppearance = true
                 camera.modalTransitionStyle = .crossDissolve
                 self.camera = camera
                 self.bridge?.viewController?.present(camera, animated: true)
@@ -394,6 +399,12 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
         finished = true
         if url != nil {
             completion(url)
+            // A safety net: never stuck on the camera if the web app
+            // doesn't get round to closing it.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
+                guard let self, self.presentingViewController != nil else { return }
+                self.dismiss(animated: true)
+            }
         } else {
             dismiss(animated: true) { self.completion(nil) }
         }

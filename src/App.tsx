@@ -162,8 +162,12 @@ function App() {
           .finally(() => setPreparingPreview(false));
         // Not forever: past this the preview box's own spinner takes over.
         await Promise.race([preview, new Promise((resolve) => window.setTimeout(resolve, 4000))]);
-        // Two frames, so the editor has been drawn before the camera goes.
-        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        // Two frames, so the editor has been drawn before the camera goes —
+        // or a moment, if the webview isn't drawing frames right now.
+        await Promise.race([
+          new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+          new Promise((resolve) => window.setTimeout(resolve, 150)),
+        ]);
       } finally {
         await closeCameraNatively().catch(() => {});
         setInstantStep(false);
