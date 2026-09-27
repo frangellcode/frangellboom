@@ -17,7 +17,7 @@ import { totalBoomerangDuration, deriveLoops } from "./lib/boomerangMath";
 import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
 import { probeVideo, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
-import { createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
+import { closeCameraNatively, createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
 import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "./lib/pro";
 import { ProSheet } from "./components/ProSheet";
 import "./App.css";
@@ -141,23 +141,32 @@ function App() {
   );
 
   // A recording is already a loop's length, so it skips trimming: straight
-  // to shaping the loop, whose preview box waits (with a spinner) for the
-  // preview clip.
+  // to shaping the loop. The camera stays up (dimmed, spinner going) while
+  // that screen is put in place underneath it — with no transition, since
+  // nobody sees it — and its live preview is made; then the camera fades
+  // away onto it. The home screen never shows in between.
+  const [instantStep, setInstantStep] = useState(false);
   const handleRecord = useCallback(
     async (recorded: VideoSource) => {
-      const probed = await probeVideo(recorded.url);
-      adoptSource(recorded, probed);
-      const length = Math.min(Math.max(probed?.duration ?? DEFAULT_SEGMENT, MIN_SEGMENT), MAX_SEGMENT);
-      setSegmentDuration(length);
-      setPreparingPreview(true);
-      setStep("adjust");
       try {
-        const clipUrl = await createPreviewNatively(recorded, 0, length);
-        setPreviewClipUrl(clipUrl);
-      } catch (err) {
-        console.error(err);
+        const probed = await probeVideo(recorded.url);
+        adoptSource(recorded, probed);
+        const length = Math.min(Math.max(probed?.duration ?? DEFAULT_SEGMENT, MIN_SEGMENT), MAX_SEGMENT);
+        setSegmentDuration(length);
+        setPreparingPreview(true);
+        setInstantStep(true);
+        setStep("adjust");
+        const preview = createPreviewNatively(recorded, 0, length)
+          .then((clipUrl) => setPreviewClipUrl(clipUrl))
+          .catch((err) => console.error(err))
+          .finally(() => setPreparingPreview(false));
+        // Not forever: past this the preview box's own spinner takes over.
+        await Promise.race([preview, new Promise((resolve) => window.setTimeout(resolve, 4000))]);
+        // Two frames, so the editor has been drawn before the camera goes.
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       } finally {
-        setPreparingPreview(false);
+        await closeCameraNatively().catch(() => {});
+        setInstantStep(false);
       }
     },
     [adoptSource],
@@ -261,7 +270,7 @@ function App() {
 
   return (
     <div
-      className={`app${step === "upload" ? " app--hero" : ""}${intro === "waiting" ? " app--waiting" : intro === "playing" ? " app--intro" : ""}`}
+      className={`app${step === "upload" ? " app--hero" : ""}${intro === "waiting" ? " app--waiting" : intro === "playing" ? " app--intro" : ""}${instantStep ? " app--instant" : ""}`}
     >
       <header className="bar">
         <h1 className="bar__wordmark">Frangellboom</h1>

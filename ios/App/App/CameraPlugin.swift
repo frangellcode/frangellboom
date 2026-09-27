@@ -16,7 +16,12 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "Camera"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "record", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise),
     ]
+
+    /// Kept up after a recording until the web app calls close(), so the
+    /// home screen never shows between the camera and the editor.
+    private weak var camera: CameraViewController?
 
     private var recordedDirectory: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("recorded", isDirectory: true)
@@ -24,6 +29,17 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
 
     override public func load() {
         try? FileManager.default.removeItem(at: recordedDirectory)
+    }
+
+    /// Fades the camera away, once the editor is ready underneath it.
+    @objc func close(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let camera = self.camera, camera.presentingViewController != nil else {
+                call.resolve()
+                return
+            }
+            camera.dismiss(animated: true) { call.resolve() }
+        }
     }
 
     @objc func record(_ call: CAPPluginCall) {
@@ -47,6 +63,8 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
                     call.resolve(["video": ["webPath": webPath, "path": url.path, "name": "Recording.mov"]])
                 }
                 camera.modalPresentationStyle = .fullScreen
+                camera.modalTransitionStyle = .crossDissolve
+                self.camera = camera
                 self.bridge?.viewController?.present(camera, animated: true)
             }
         }
@@ -368,10 +386,17 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
         sessionQueue.async { self.configure(position: self.position) }
     }
 
+    /// A clip is handed over with the camera still up (dimmed, spinner
+    /// going) — the web app closes it once the editor is in place. Closing
+    /// without a clip dismisses right away.
     private func finish(_ url: URL?) {
         guard !finished else { return }
         finished = true
-        dismiss(animated: true) { self.completion(url) }
+        if url != nil {
+            completion(url)
+        } else {
+            dismiss(animated: true) { self.completion(nil) }
+        }
     }
 
     // MARK: - AVCaptureFileOutputRecordingDelegate

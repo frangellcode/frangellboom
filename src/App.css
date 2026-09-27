@@ -72,6 +72,15 @@
   }
 }
 
+/* Under the camera, the editor is put in place at once (see handleRecord). */
+.app--instant::after {
+  transition: none;
+}
+
+.app--instant .screen {
+  animation: none;
+}
+
 .screen--leaving {
   opacity: 0;
   transition: opacity 0.2s ease-in;
