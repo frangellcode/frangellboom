@@ -17,7 +17,7 @@ import { totalBoomerangDuration, deriveLoops } from "./lib/boomerangMath";
 import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
 import { probeVideo, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
-import { closeCameraNatively, createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
+import { closeCameraNatively, createLoopNatively, createPreviewNatively, recordVideoNatively } from "./lib/nativeVideo";
 import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "./lib/pro";
 import { ProSheet } from "./components/ProSheet";
 import "./App.css";
@@ -145,7 +145,14 @@ function App() {
   // that screen is put in place underneath it — with no transition, since
   // nobody sees it — and its live preview is made; then the camera fades
   // away onto it. The home screen never shows in between.
-  const [instantStep, setInstantStep] = useState(false);
+  //
+  // underCamera: the veil jumps instead of easing, while the camera covers it.
+  // enteredFromCamera: that editor screen, for as long as it's up, skips its
+  // entrance (switching the entrance back on would replay it) and its
+  // video shows as-is; it also offers "Record again" in place of "Trim".
+  const [underCamera, setUnderCamera] = useState(false);
+  const [enteredFromCamera, setEnteredFromCamera] = useState(false);
+  const previewShown = useRef<(() => void) | null>(null);
   const handleRecord = useCallback(
     async (recorded: VideoSource) => {
       try {
@@ -154,14 +161,22 @@ function App() {
         const length = Math.min(Math.max(probed?.duration ?? DEFAULT_SEGMENT, MIN_SEGMENT), MAX_SEGMENT);
         setSegmentDuration(length);
         setPreparingPreview(true);
-        setInstantStep(true);
+        setUnderCamera(true);
+        setEnteredFromCamera(true);
         setStep("adjust");
-        const preview = createPreviewNatively(recorded, 0, length)
+        // Until the live preview has its first frame on screen...
+        const shown = new Promise<void>((resolve) => {
+          previewShown.current = resolve;
+        });
+        createPreviewNatively(recorded, 0, length)
           .then((clipUrl) => setPreviewClipUrl(clipUrl))
-          .catch((err) => console.error(err))
+          .catch((err) => {
+            console.error(err);
+            previewShown.current?.();
+          })
           .finally(() => setPreparingPreview(false));
-        // Not forever: past this the preview box's own spinner takes over.
-        await Promise.race([preview, new Promise((resolve) => window.setTimeout(resolve, 4000))]);
+        // ...but not forever: past this the preview box's own spinner takes over.
+        await Promise.race([shown, new Promise((resolve) => window.setTimeout(resolve, 4000))]);
         // Two frames, so the editor has been drawn before the camera goes —
         // or a moment, if the webview isn't drawing frames right now.
         await Promise.race([
@@ -170,11 +185,22 @@ function App() {
         ]);
       } finally {
         await closeCameraNatively().catch(() => {});
-        setInstantStep(false);
+        setUnderCamera(false);
       }
     },
     [adoptSource],
   );
+
+  const recordAgain = useCallback(() => {
+    recordVideoNatively(t.recordHint)
+      .then((recorded) => recorded && handleRecord(recorded))
+      .catch((err) => console.error(err));
+  }, [t.recordHint, handleRecord]);
+
+  // Any other way onto a screen brings back the usual entrances.
+  useEffect(() => {
+    if (step !== "adjust" && step !== "processing") setEnteredFromCamera(false);
+  }, [step]);
 
   const handleReset = useCallback(() => {
     setStep("upload");
@@ -274,7 +300,7 @@ function App() {
 
   return (
     <div
-      className={`app${step === "upload" ? " app--hero" : ""}${intro === "waiting" ? " app--waiting" : intro === "playing" ? " app--intro" : ""}${instantStep ? " app--instant" : ""}`}
+      className={`app${step === "upload" ? " app--hero" : ""}${intro === "waiting" ? " app--waiting" : intro === "playing" ? " app--intro" : ""}${underCamera ? " app--under-camera" : ""}`}
     >
       <header className="bar">
         <h1 className="bar__wordmark">Frangellboom</h1>
@@ -340,7 +366,10 @@ function App() {
         )}
 
         {(step === "adjust" || step === "processing") && videoUrl && (
-          <div className={`screen${screenLeaving ? " screen--leaving" : ""}`} key="adjust">
+          <div
+            className={`screen${screenLeaving ? " screen--leaving" : ""}${enteredFromCamera ? " screen--instant" : ""}`}
+            key="adjust"
+          >
             {headline(t.adjustEyebrow)}
             {preparingPreview && !previewClipUrl ? (
               <div className="preview preview--waiting">
@@ -354,6 +383,8 @@ function App() {
                 duration={clampedSegmentDuration}
                 speed={effectiveSpeed}
                 mode={mode}
+                fadeIn={!enteredFromCamera}
+                onShown={() => previewShown.current?.()}
               />
             )}
 
@@ -374,9 +405,15 @@ function App() {
             {error && <p className="error">{error}</p>}
 
             <div className="actions">
-              <button type="button" className="button button--ghost" onClick={() => leaveTo("trim")}>
-                <FadeText value={t.trimBack} trigger={lang} />
-              </button>
+              {enteredFromCamera ? (
+                <button type="button" className="button button--ghost" onClick={recordAgain}>
+                  <FadeText value={t.recordAgain} trigger={lang} />
+                </button>
+              ) : (
+                <button type="button" className="button button--ghost" onClick={() => leaveTo("trim")}>
+                  <FadeText value={t.trimBack} trigger={lang} />
+                </button>
+              )}
               <button type="button" className="button button--light" onClick={handleCreate} disabled={step === "processing"}>
                 <FadeText value={t.create} trigger={lang} />
               </button>

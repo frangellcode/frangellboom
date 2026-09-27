@@ -9,13 +9,17 @@ interface BoomerangPreviewProps {
   videoUrl: string;
   /** Width / height, known before the video loads (see probeVideo). */
   aspect: number;
+  /** Fade the video in once it has a frame (off when it loads out of sight). */
+  fadeIn?: boolean;
+  /** Called once the video has its first frame. */
+  onShown?: () => void;
   start: number;
   duration: number;
   speed: Speed;
   mode: Mode;
 }
 
-export function BoomerangPreview({ videoUrl, aspect, start, duration, speed, mode }: BoomerangPreviewProps) {
+export function BoomerangPreview({ videoUrl, aspect, fadeIn = true, onShown, start, duration, speed, mode }: BoomerangPreviewProps) {
   const t = useT();
   const lang = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -33,11 +37,14 @@ export function BoomerangPreview({ videoUrl, aspect, start, duration, speed, mod
       <video
         ref={videoRef}
         src={videoUrl}
-        className={`preview__video video-fade${ready ? " video-fade--ready" : ""}`}
+        className={`preview__video${fadeIn ? " video-fade" : ""}${fadeIn && ready ? " video-fade--ready" : ""}`}
         style={{ aspectRatio: aspect }}
         muted
         playsInline
-        onLoadedData={() => setReady(true)}
+        onLoadedData={() => {
+          setReady(true);
+          onShown?.();
+        }}
       />
       <span className="preview__live-badge"><FadeText value={t.live} trigger={lang} /></span>
       <button

@@ -72,12 +72,13 @@
   }
 }
 
-/* Under the camera, the editor is put in place at once (see handleRecord). */
-.app--instant::after {
+/* Under the camera, the editor is put in place at once (see handleRecord).
+   (Doubled class: it has to beat .app::after and .app--hero::after below.) */
+.app.app--under-camera::after {
   transition: none;
 }
 
-.app--instant .screen {
+.screen--instant {
   animation: none;
 }
 
