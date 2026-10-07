@@ -1,7 +1,7 @@
 // Turns the raw app screenshots in docs/screenshots/{en,es} into App Store
 // screenshots (1320x2868, iPhone 6.9"): a big headline and a subtitle above
-// the app in a rounded phone frame, on the app's own dark plum. Same layout
-// as PolarGrid's store screenshots, recoloured for Frangellboom. App Store
+// the app in a rounded phone frame, on the home screen's own sky
+// (src/assets/sky.jpg). Same layout as PolarGrid's store screenshots. App Store
 // Connect rejects transparency, so every file is flattened to RGB.
 //
 //   node scripts/frame-screenshots.mjs
@@ -15,7 +15,7 @@ const SHOTS = {
   en: {
     folder: "English",
     items: [
-      ["1-home", "1 Home", "Back-and-forth|video loops.", "No account. No uploads. No watermark."],
+      ["1-home", "1 Home", "Back-and-forth|video loops.", "No account. No uploads. All on your iPhone."],
       ["2-trim", "2 Pick the moment", "Pick the|perfect moment.", "Up to 2 seconds of any video"],
       ["3-adjust", "3 Modes", "Five ways|to loop.", "Classic, Ease, Freeze, Pulse and Zoom"],
       ["4-processing", "4 Hardware", "Made on your|iPhone's chip.", "4K, 60 fps and HDR, in seconds"],
@@ -25,7 +25,7 @@ const SHOTS = {
   es: {
     folder: "Español",
     items: [
-      ["1-home", "1 Inicio", "Bucles de video|de ida y vuelta.", "Sin cuenta. Sin subidas. Sin marca de agua."],
+      ["1-home", "1 Inicio", "Bucles de video|de ida y vuelta.", "Sin cuenta. Sin subidas. Todo en tu iPhone."],
       ["2-trim", "2 Elige el momento", "Elige el|momento exacto.", "Hasta 2 segundos de cualquier video"],
       ["3-adjust", "3 Modos", "Cinco formas|de hacer bucles.", "Clásico, Suave, Pausa, Pulso y Zoom"],
       ["4-processing", "4 Hardware", "Hecho con el chip|de tu iPhone.", "4K, 60 fps y HDR, en segundos"],
@@ -45,23 +45,23 @@ async function frame(raw, out, title, subtitle) {
   const mask = Buffer.from(`<svg width="${shotW}" height="${shotH}"><rect width="${shotW}" height="${shotH}" rx="${r}" fill="#fff"/></svg>`);
   const shot = await sharp(raw).resize(shotW, shotH).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
   const lines = title.split("|");
-  const bg = Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  const ink = "#1b1b1b";
+  const overlay = Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a1236"/><stop offset="1" stop-color="#12060f"/></linearGradient>
-      <radialGradient id="glow" cx="0.5" cy="0.08" r="0.6"><stop offset="0" stop-color="#ff2e63" stop-opacity="0.35"/><stop offset="1" stop-color="#ff2e63" stop-opacity="0"/></radialGradient>
+      <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="0.25" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
       <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="30"/></filter>
     </defs>
-    <rect width="${W}" height="${H}" fill="url(#g)"/>
-    <rect width="${W}" height="${H}" fill="url(#glow)"/>
-    ${lines.map((l, i) => `<text x="${W / 2}" y="${215 + i * 118}" text-anchor="middle" font-family="Helvetica Neue" font-weight="700" font-size="104" fill="#ffffff" letter-spacing="-1">${esc(l)}</text>`).join("")}
-    <text x="${W / 2}" y="${215 + lines.length * 118 + 20}" text-anchor="middle" font-family="Helvetica Neue" font-size="46" fill="#ffffff" fill-opacity="0.66">${esc(subtitle)}</text>
-    <rect x="${left}" y="${top + 30}" width="${shotW}" height="${shotH}" rx="${r}" fill="#000" fill-opacity="0.55" filter="url(#s)"/>
-    <rect x="${left - 14}" y="${top - 14}" width="${shotW + 28}" height="${shotH + 28}" rx="${r + 14}" fill="#0b0508"/>
-    <rect x="${left - 14}" y="${top - 14}" width="${shotW + 28}" height="${shotH + 28}" rx="${r + 14}" fill="none" stroke="#8a2a55" stroke-width="3"/>
+    <rect width="${W}" height="${H}" fill="url(#haze)"/>
+    ${lines.map((l, i) => `<text x="${W / 2}" y="${215 + i * 118}" text-anchor="middle" font-family="Helvetica Neue" font-weight="700" font-size="104" fill="${ink}" letter-spacing="-1">${esc(l)}</text>`).join("")}
+    <text x="${W / 2}" y="${215 + lines.length * 118 + 20}" text-anchor="middle" font-family="Helvetica Neue" font-size="46" fill="${ink}" fill-opacity="0.7">${esc(subtitle)}</text>
+    <rect x="${left}" y="${top + 30}" width="${shotW}" height="${shotH}" rx="${r}" fill="#1b2a40" fill-opacity="0.45" filter="url(#s)"/>
+    <rect x="${left - 14}" y="${top - 14}" width="${shotW + 28}" height="${shotH + 28}" rx="${r + 14}" fill="#0b0b0d"/>
+    <rect x="${left - 14}" y="${top - 14}" width="${shotW + 28}" height="${shotH + 28}" rx="${r + 14}" fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="3"/>
   </svg>`);
-  await sharp(bg)
-    .composite([{ input: shot, left, top }])
-    .flatten({ background: "#12060f" })
+  await sharp("src/assets/sky.jpg")
+    .resize(W, H, { fit: "cover" })
+    .composite([{ input: overlay }, { input: shot, left, top }])
+    .flatten({ background: "#ffffff" })
     .removeAlpha()
     .png()
     .toFile(out);

@@ -57,7 +57,7 @@ const es = {
   pro: {
     title: "Frangellboom Pro",
     subtitle: "Un solo pago, para siempre. Sin suscripción.",
-    features: ["Modos Ease, Freeze, Pulse y Zoom", "Calidad 4K y 2K", "Sin marca de agua"],
+    features: ["Modos Suave, Pausa, Pulso y Zoom", "Calidad 4K y 2K", "Sin marca de agua"],
     unlock: (price: string) => `Desbloquear por ${price}`,
     loadingPrice: "Cargando…",
     unavailable: "No disponible ahora",
