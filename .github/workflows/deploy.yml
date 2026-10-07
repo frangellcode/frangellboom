@@ -1,8 +1,17 @@
-name: Deploy to GitHub Pages
+name: Deploy legal pages to GitHub Pages
+
+# GitHub Pages serves ONLY the privacy policy and support pages the App Store
+# listing links to — never the web app itself, which would give the app away
+# for free next to its App Store version.
 
 on:
   push:
     branches: [main]
+    paths:
+      - public/privacy.html
+      - public/support.html
+      - .github/workflows/deploy.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,18 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: npm
+      - name: Collect the legal pages
+        run: |
+          mkdir site
+          cp public/privacy.html public/support.html site/
+          printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./support.html"><title>Support</title><a href="./support.html">Support</a>\n' > site/index.html
 
-      - run: npm ci
-      - run: npm run build
-
-      # Publishes dist/ to the gh-pages branch, same as running
-      # `npm run deploy` locally — GitHub Pages is already set to serve
-      # from that branch, so no Pages settings need to change.
+      # force_orphan: the gh-pages branch keeps only these files, with none of
+      # the web app builds it used to hold.
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./site
+          force_orphan: true
