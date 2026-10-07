@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toggleLanguage, useLanguage, useT } from "./lib/i18n";
 import { FadeText } from "./components/FadeText";
 import { SupportFooter } from "./components/SupportFooter";
+import { Headline } from "./components/Headline";
+import { introPending, prepareIntro } from "./lib/intro";
 import { VideoUploader } from "./components/VideoUploader";
-import { BoomerangMark } from "./components/BoomerangMark";
 import { VideoTrimmer } from "./components/VideoTrimmer";
 import { BoomerangPreview } from "./components/BoomerangPreview";
 import { BoomerangControls } from "./components/BoomerangControls";
@@ -14,9 +15,11 @@ import { createBoomerang, type Resolution, type Speed, type Mode } from "./lib/b
 import { extractPreviewClip } from "./lib/previewClip";
 import { totalBoomerangDuration, deriveLoops } from "./lib/boomerangMath";
 import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
-import type { VideoSource } from "./lib/videoSource";
+import { probeVideo, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
-import { createLoopNatively, createPreviewNatively } from "./lib/nativeVideo";
+import { closeCameraNatively, createLoopNatively, createPreviewNatively, recordVideoNatively } from "./lib/nativeVideo";
+import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "./lib/pro";
+import { ProSheet } from "./components/ProSheet";
 import "./App.css";
 
 type Step = "upload" | "trim" | "adjust" | "processing" | "result";
@@ -29,12 +32,31 @@ const MAX_SEGMENT = 2;
 // vanished the instant the export finished, which read as an abrupt cut
 // even though the result screen itself fades in underneath it.
 const OVERLAY_LEAVE_MS = 280;
+// How long a step takes to fade out before the next one fades in (see
+// .screen--leaving in App.css).
+const SCREEN_LEAVE_MS = 200;
 
 function App() {
   const t = useT();
   const lang = useLanguage();
   const [step, setStep] = useState<Step>("upload");
+  // Cold start: the sky waits (matching the launch screen) until everything
+  // is loaded, then the home screen assembles itself; see App.css.
+  const [intro, setIntro] = useState<"waiting" | "playing" | "done">(() => (introPending() ? "waiting" : "done"));
+  useEffect(() => {
+    if (intro !== "waiting") return;
+    prepareIntro().then(() => setIntro("playing"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, on the cold start
+  }, []);
+  // The intro's classes stay on for as long as the home screen it built is
+  // up. Taking them off any earlier swaps each element back to its everyday
+  // entrance animation, which the browser then plays all over again.
+  useEffect(() => {
+    if (step !== "upload" && intro === "playing") setIntro("done");
+  }, [step, intro]);
   const [source, setSource] = useState<VideoSource | null>(null);
+  // Width / height of the source, so its box is laid out before it loads.
+  const [aspect, setAspect] = useState(9 / 16);
   const videoUrl = source?.url ?? null;
   const [duration, setDuration] = useState(0);
   const [start, setStart] = useState(0);
@@ -42,12 +64,31 @@ function App() {
   const [speed, setSpeed] = useState<Speed>(1);
   const [mode, setMode] = useState<Mode>("classic");
   const [resolution, setResolution] = useState<Resolution>("original");
+  const isPro = useIsPro();
+
+  // Without Pro, a Pro choice falls back to the best free one: Classic, and
+  // 1080p. (Original is the default for someone with Pro.)
+  useEffect(() => {
+    if (isPro) return;
+    if (PRO_MODES.includes(mode)) setMode("classic");
+    if (PRO_RESOLUTIONS.includes(resolution)) setResolution("1080");
+  }, [isPro, mode, resolution]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<LoopResult | null>(null);
   const [previewClipUrl, setPreviewClipUrl] = useState<string | null>(null);
   const [preparingPreview, setPreparingPreview] = useState(false);
   const [overlayLeaving, setOverlayLeaving] = useState(false);
+  const [screenLeaving, setScreenLeaving] = useState(false);
+
+  // Between trimming and shaping the loop: the step on screen fades out
+  // first, so the next one never replaces it in a single frame.
+  const leaveTo = useCallback(async (next: Step) => {
+    setScreenLeaving(true);
+    await new Promise((resolve) => window.setTimeout(resolve, SCREEN_LEAVE_MS));
+    setScreenLeaving(false);
+    setStep(next);
+  }, []);
   const ffmpegPreload = useRef(false);
 
   // Kick off the (large) ffmpeg-core download as soon as the user lands,
@@ -74,21 +115,92 @@ function App() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [step]);
 
-  const handleSelect = useCallback((selected: VideoSource) => {
+  // Makes a new video the one being worked on, from the start.
+  const adoptSource = useCallback((selected: VideoSource, probed: { aspect: number; duration: number } | null) => {
+    setAspect(probed?.aspect ?? 9 / 16);
     setError(null);
     setSource((prev) => {
       if (prev) releaseSource(prev);
       return selected;
     });
-    setDuration(0);
+    setDuration(probed?.duration ?? 0);
     setStart(0);
     setSegmentDuration(DEFAULT_SEGMENT);
     setPreviewClipUrl((prev) => {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return null;
     });
-    setStep("trim");
   }, []);
+
+  const handleSelect = useCallback(
+    async (selected: VideoSource) => {
+      adoptSource(selected, await probeVideo(selected.url));
+      setStep("trim");
+    },
+    [adoptSource],
+  );
+
+  // A recording is already a loop's length, so it skips trimming: straight
+  // to shaping the loop. The camera stays up (dimmed, spinner going) while
+  // that screen is put in place underneath it — with no transition, since
+  // nobody sees it — and its live preview is made; then the camera fades
+  // away onto it. The home screen never shows in between.
+  //
+  // underCamera: the veil jumps instead of easing, while the camera covers it.
+  // enteredFromCamera: that editor screen, for as long as it's up, skips its
+  // entrance (switching the entrance back on would replay it) and its
+  // video shows as-is; it also offers "Record again" in place of "Trim".
+  const [underCamera, setUnderCamera] = useState(false);
+  const [enteredFromCamera, setEnteredFromCamera] = useState(false);
+  const previewShown = useRef<(() => void) | null>(null);
+  const handleRecord = useCallback(
+    async (recorded: VideoSource) => {
+      try {
+        const probed = await probeVideo(recorded.url);
+        adoptSource(recorded, probed);
+        const length = Math.min(Math.max(probed?.duration ?? DEFAULT_SEGMENT, MIN_SEGMENT), MAX_SEGMENT);
+        setSegmentDuration(length);
+        setPreparingPreview(true);
+        setUnderCamera(true);
+        setEnteredFromCamera(true);
+        setStep("adjust");
+        // Until the live preview has its first frame on screen...
+        const shown = new Promise<void>((resolve) => {
+          previewShown.current = resolve;
+        });
+        createPreviewNatively(recorded, 0, length)
+          .then((clipUrl) => setPreviewClipUrl(clipUrl))
+          .catch((err) => {
+            console.error(err);
+            previewShown.current?.();
+          })
+          .finally(() => setPreparingPreview(false));
+        // ...but not forever: past this the preview box's own spinner takes over.
+        await Promise.race([shown, new Promise((resolve) => window.setTimeout(resolve, 4000))]);
+        // Two frames, so the editor has been drawn before the camera goes —
+        // or a moment, if the webview isn't drawing frames right now.
+        await Promise.race([
+          new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+          new Promise((resolve) => window.setTimeout(resolve, 150)),
+        ]);
+      } finally {
+        await closeCameraNatively().catch(() => {});
+        setUnderCamera(false);
+      }
+    },
+    [adoptSource],
+  );
+
+  const recordAgain = useCallback(() => {
+    recordVideoNatively(t.recordHint)
+      .then((recorded) => recorded && handleRecord(recorded))
+      .catch((err) => console.error(err));
+  }, [t.recordHint, handleRecord]);
+
+  // Any other way onto a screen brings back the usual entrances.
+  useEffect(() => {
+    if (step !== "adjust" && step !== "processing") setEnteredFromCamera(false);
+  }, [step]);
 
   const handleReset = useCallback(() => {
     setStep("upload");
@@ -131,7 +243,7 @@ function App() {
     try {
       const options = { start, duration: clampedSegmentDuration, loops, resolution, speed: effectiveSpeed, mode };
       if (isNativeApp) {
-        const { webPath, uri } = await createLoopNatively(source, options, setProgress);
+        const { webPath, uri } = await createLoopNatively(source, { ...options, watermark: !isPro }, setProgress);
         setResult({ url: webPath, uri });
       } else {
         const blob = await withFFmpeg((ffmpeg) => createBoomerang(ffmpeg, source, { ...options, onProgress: setProgress }));
@@ -153,7 +265,7 @@ function App() {
       if (!isNativeApp) resetFFmpeg().catch(() => {});
       releaseWakeLock();
     }
-  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t]);
+  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, isPro]);
 
   const handleGoToAdjust = useCallback(async () => {
     if (!source) return;
@@ -174,141 +286,154 @@ function App() {
       // Non-fatal: BoomerangPreview falls back to scrubbing the original
       // file directly, just less smoothly.
     } finally {
+      await leaveTo("adjust");
       setPreparingPreview(false);
-      setStep("adjust");
     }
-  }, [source, start, clampedSegmentDuration]);
+  }, [source, start, clampedSegmentDuration, leaveTo]);
 
   const totalDuration = useMemo(
     () => totalBoomerangDuration(mode, effectiveSpeed, clampedSegmentDuration, loops),
     [mode, effectiveSpeed, clampedSegmentDuration, loops],
   );
 
+  const headline = (text: string) => <Headline text={text} />;
+
   return (
-    <div className="app">
-      <header className="app__header">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="app__logo" width="36" height="36" />
-        <div>
-          <h1 className="app__title">Frangellboom</h1>
-          <p className="app__tagline"><FadeText value={t.tagline} trigger={lang} /></p>
-        </div>
-        <button type="button" className="app__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
+    <div
+      className={`app${step === "upload" ? " app--hero" : ""}${intro === "waiting" ? " app--waiting" : intro === "playing" ? " app--intro" : ""}${underCamera ? " app--under-camera" : ""}`}
+    >
+      <header className="bar">
+        <h1 className="bar__wordmark">Frangellboom</h1>
+        <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
           <FadeText value={t.langToggle} trigger={lang} />
         </button>
       </header>
 
       <main className="app__main">
         {step === "upload" && (
-          <div className="upload-screen">
-            <VideoUploader onSelect={handleSelect} error={error} />
+          <div className="screen hero" key="upload">
+            <VideoUploader onSelect={handleSelect} onRecord={handleRecord} error={error} />
             <SupportFooter />
           </div>
         )}
 
         {step === "trim" && videoUrl && (
-          <div className="trim-screen">
-            <div className="editor">
-              <VideoTrimmer
-                videoUrl={videoUrl}
-                duration={duration}
-                start={start}
-                segmentDuration={clampedSegmentDuration}
-                onStartChange={setStart}
-                onDurationChange={setDuration}
+          <div className={`screen${screenLeaving ? " screen--leaving" : ""}`} key="trim">
+            {headline(t.trimEyebrow)}
+            <VideoTrimmer
+              videoUrl={videoUrl}
+              aspect={aspect}
+              duration={duration}
+              start={start}
+              segmentDuration={clampedSegmentDuration}
+              onStartChange={setStart}
+              onDurationChange={setDuration}
+            />
+
+            <div className="field card">
+              <label className="field__label" htmlFor="segment-duration">
+                <span>
+                  <FadeText value={t.segmentLength} trigger={lang} />
+                </span>
+                <span className="field__value">{clampedSegmentDuration.toFixed(1)}s</span>
+              </label>
+              <input
+                id="segment-duration"
+                className="range"
+                type="range"
+                min={MIN_SEGMENT}
+                max={Math.max(maxSegmentDuration, MIN_SEGMENT)}
+                step={0.1}
+                value={clampedSegmentDuration}
+                onChange={(e) => setSegmentDuration(Number(e.target.value))}
               />
+            </div>
 
-              <div className="controls controls--single">
-                <div className="controls__row">
-                  <label className="controls__label" htmlFor="segment-duration">
-                    <span><FadeText value={t.segmentLength} trigger={lang} /></span>
-                    <span className="controls__value">{clampedSegmentDuration.toFixed(1)}s</span>
-                  </label>
-                  <input
-                    id="segment-duration"
-                    type="range"
-                    min={MIN_SEGMENT}
-                    max={Math.max(maxSegmentDuration, MIN_SEGMENT)}
-                    step={0.1}
-                    value={clampedSegmentDuration}
-                    onChange={(e) => setSegmentDuration(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="editor__actions">
-                <button type="button" className="btn btn--ghost" onClick={handleReset}>
-                  <FadeText value={t.back} trigger={lang} />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={handleGoToAdjust}
-                  disabled={duration === 0 || preparingPreview}
-                >
-                  {preparingPreview ? t.preparing : t.next}
-                </button>
-              </div>
+            <div className="actions">
+              <button type="button" className="button button--ghost" onClick={handleReset}>
+                <FadeText value={t.back} trigger={lang} />
+              </button>
+              <button
+                type="button"
+                className="button button--light"
+                onClick={handleGoToAdjust}
+                disabled={duration === 0 || preparingPreview}
+              >
+                <FadeText value={preparingPreview ? t.preparing : t.next} trigger={lang} />
+              </button>
             </div>
           </div>
         )}
 
         {(step === "adjust" || step === "processing") && videoUrl && (
-          <div className="adjust-screen">
-            <div className="editor">
+          <div
+            className={`screen${screenLeaving ? " screen--leaving" : ""}${enteredFromCamera ? " screen--instant" : ""}`}
+            key="adjust"
+          >
+            {headline(t.adjustEyebrow)}
+            {preparingPreview && !previewClipUrl ? (
+              <div className="preview preview--waiting">
+                <div className="preview__placeholder" style={{ aspectRatio: aspect }} />
+              </div>
+            ) : (
               <BoomerangPreview
                 videoUrl={previewClipUrl ?? videoUrl}
+                aspect={aspect}
                 start={previewClipUrl ? 0 : start}
                 duration={clampedSegmentDuration}
                 speed={effectiveSpeed}
                 mode={mode}
+                fadeIn={!enteredFromCamera}
+                onShown={() => previewShown.current?.()}
               />
+            )}
 
-              <p className="total-duration">
-                <FadeText value={t.segment} trigger={lang} />: <strong>{clampedSegmentDuration.toFixed(1)}s</strong> · <FadeText value={t.totalLength} trigger={lang} />:{" "}
-                <strong>{totalDuration.toFixed(1)}s</strong>
-              </p>
+            <p className="meta">
+              <FadeText value={t.segment} trigger={lang} /> {clampedSegmentDuration.toFixed(1)}s ·{" "}
+              <FadeText value={t.totalLength} trigger={lang} /> {totalDuration.toFixed(1)}s
+            </p>
 
-              <BoomerangControls
-                speed={speed}
-                onSpeedChange={setSpeed}
-                mode={mode}
-                onModeChange={setMode}
-                resolution={resolution}
-                onResolutionChange={setResolution}
-              />
+            <BoomerangControls
+              speed={speed}
+              onSpeedChange={setSpeed}
+              mode={mode}
+              onModeChange={setMode}
+              resolution={resolution}
+              onResolutionChange={setResolution}
+            />
 
-              {error && <p className="app__error">{error}</p>}
+            {error && <p className="error">{error}</p>}
 
-              <div className="editor__actions">
-                <button type="button" className="btn btn--ghost" onClick={() => setStep("trim")}>
+            <div className="actions">
+              {enteredFromCamera ? (
+                <button type="button" className="button button--ghost" onClick={recordAgain}>
+                  <FadeText value={t.recordAgain} trigger={lang} />
+                </button>
+              ) : (
+                <button type="button" className="button button--ghost" onClick={() => leaveTo("trim")}>
                   <FadeText value={t.trimBack} trigger={lang} />
                 </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={handleCreate}
-                  disabled={step === "processing"}
-                >
-                  <BoomerangMark className="btn__mark" />
-                  <FadeText value={t.create} trigger={lang} />
-                </button>
-              </div>
+              )}
+              <button type="button" className="button button--light" onClick={handleCreate} disabled={step === "processing"}>
+                <FadeText value={t.create} trigger={lang} />
+              </button>
             </div>
           </div>
         )}
 
         {step === "processing" && (
-          <div className={`app__overlay${overlayLeaving ? " app__overlay--leaving" : ""}`}>
+          <div className={`overlay${overlayLeaving ? " overlay--leaving" : ""}`}>
             <ProcessingOverlay progress={progress} label={t.creating} />
           </div>
         )}
 
         {step === "result" && result && (
-          <div className="result-screen">
-            <ResultView result={result} onReset={handleReset} />
+          <div className="screen" key="result">
+            <ResultView result={result} aspect={aspect} onReset={handleReset} />
           </div>
         )}
       </main>
+      {isNativeApp && <ProSheet />}
     </div>
   );
 }

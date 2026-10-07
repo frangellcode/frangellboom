@@ -12,6 +12,13 @@ const KeepAwake = registerPlugin<{ enable(): Promise<void>; disable(): Promise<v
 
 let sentinel: WakeLockSentinel | null = null;
 
+// Live reload only (npm run ios:dev serves the app from Vite's dev server,
+// where import.meta.env.DEV is true): the iPhone stays awake the whole time
+// the app is open, so it doesn't lock while changes are being tried on it.
+// Production builds compile this away and only stay awake while exporting.
+const STAY_AWAKE_WHILE_DEVELOPING = import.meta.env.DEV && isNativeApp;
+if (STAY_AWAKE_WHILE_DEVELOPING) KeepAwake.enable().catch(() => {});
+
 export async function requestWakeLock(): Promise<void> {
   if (isNativeApp) {
     await KeepAwake.enable().catch(() => {});
@@ -28,7 +35,7 @@ export async function requestWakeLock(): Promise<void> {
 
 export async function releaseWakeLock(): Promise<void> {
   if (isNativeApp) {
-    await KeepAwake.disable().catch(() => {});
+    if (!STAY_AWAKE_WHILE_DEVELOPING) await KeepAwake.disable().catch(() => {});
     return;
   }
   const current = sentinel;

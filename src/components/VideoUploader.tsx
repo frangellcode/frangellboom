@@ -2,19 +2,23 @@ import { useCallback, useRef, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
-import { importFileNatively, pickVideoNatively } from "../lib/nativeVideo";
+import { importFileNatively, pickVideoNatively, recordVideoNatively } from "../lib/nativeVideo";
 import type { VideoSource } from "../lib/videoSource";
+import { Headline } from "./Headline";
 
 interface VideoUploaderProps {
   onSelect: (source: VideoSource) => void;
+  /** A clip from the app's own camera: already the length of a loop. */
+  onRecord: (source: VideoSource) => void;
   error?: string | null;
 }
 
-export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
+export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps) {
   const t = useT();
   const lang = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
@@ -44,45 +48,86 @@ export function VideoUploader({ onSelect, error }: VideoUploaderProps) {
       .catch((err) => console.error(err));
   }, [onSelect]);
 
-  return (
-    <div className="uploader-group">
-      <div
-        className={`uploader${dragging ? " uploader--dragging" : ""}`}
-        onClick={openPicker}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          handleFiles(e.dataTransfer.files);
-        }}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") openPicker();
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept="video/*"
-          className="uploader__input"
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-        <div className="uploader__icon">🎥</div>
-        <p className="uploader__title"><FadeText value={t.importTitle} trigger={lang} /></p>
-        <p className="uploader__hint"><FadeText value={t.importHint} trigger={lang} /></p>
-        {error && <p className="uploader__error">{error}</p>}
-      </div>
+  const openCamera = useCallback(() => {
+    setCameraError(false);
+    recordVideoNatively(t.recordHint)
+      .then((source) => source && onRecord(source))
+      .catch((err) => {
+        if ((err as { code?: string }).code === "DENIED") setCameraError(true);
+        else console.error(err);
+      });
+  }, [onRecord, t.recordHint]);
 
-      <div className="uploader__badges">
-        <span className="badge"><FadeText value={t.badgeOnDevice} trigger={lang} /></span>
-        <span className="uploader__badges-dot" aria-hidden="true" />
-        <span className="badge"><FadeText value={t.badgeQuality} trigger={lang} /></span>
+  return (
+    <div
+      className={`uploader${dragging ? " uploader--dragging" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        handleFiles(e.dataTransfer.files);
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/*"
+        className="uploader__input"
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+      <GlassArc />
+      <div className="poster">
+        <p key={t.heroWord} className="poster__word" style={{ "--chars": t.heroWord.length } as React.CSSProperties}>
+          {[...t.heroWord].map((letter, i) => (
+            <span key={i} className="poster__letter" style={{ "--i": i } as React.CSSProperties}>
+              {letter}
+            </span>
+          ))}
+        </p>
+        <Headline text={t.heroLine} className="poster__line" />
       </div>
+      <button type="button" className="button button--light" onClick={openPicker}>
+        <FadeText value={t.importCta} trigger={lang} />
+      </button>
+      {isNativeApp && (
+        <button type="button" className="button button--sky" onClick={openCamera}>
+          <FadeText value={t.recordCta} trigger={lang} />
+        </button>
+      )}
+      {cameraError && <p className="uploader__error">{t.cameraDenied}</p>}
+      {!isNativeApp && (
+        <p className="uploader__hint">
+          <FadeText value={t.dropHint} trigger={lang} />
+        </p>
+      )}
+      {error && <p className="uploader__error">{error}</p>}
+      <p className="uploader__meta">
+        <FadeText value={t.badgeOnDevice} trigger={lang} /> · <FadeText value={t.badgeQuality} trigger={lang} />
+      </p>
     </div>
+  );
+}
+
+/** The app's arc as a piece of glass floating in the sky — the home screen's
+ *  counterpart to the sculptural glass forms in the Air style reference. */
+function GlassArc() {
+  const arc = "M40,150 C40,86 76,30 120,30 C164,30 200,86 200,150";
+  return (
+    <svg className="glass" viewBox="0 0 240 180" aria-hidden="true">
+      <defs>
+        <filter id="glass-soft" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.4" />
+        </filter>
+      </defs>
+      {/* body: frosted, lets the sky show through */}
+      <path d={arc} className="glass__body" />
+      {/* rim light along the outer edge and a bright streak on top */}
+      <path d={arc} className="glass__rim" />
+      <path d="M58,104 C68,66 92,42 120,40" className="glass__streak" filter="url(#glass-soft)" />
+    </svg>
   );
 }

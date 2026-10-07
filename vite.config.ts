@@ -19,9 +19,29 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5174,
       strictPort: true,
+      // Xcode's build output (ios/App/build) holds copies of public/; without
+      // this every native build would reload the live-reload session.
+      watch: { ignored: ["**/ios/**"] },
     },
     plugins: [
       react(),
+      // Dev server only: React Fast Refresh injects an inline preamble, HMR
+      // talks over a websocket, and on the iPhone the phone's own files are
+      // cross-origin — all things index.html's locked-down CSP would block.
+      // Builds keep the strict policy untouched.
+      {
+        name: "dev-csp",
+        apply: "serve",
+        transformIndexHtml: (html) =>
+          html
+            .replace("script-src 'self' 'wasm-unsafe-eval';", "script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline';")
+            .replace("connect-src 'self' blob:;", "connect-src 'self' blob: ws: wss: capacitor:;")
+            // In live reload the page comes from this Mac, but videos picked
+            // on the iPhone and the loops it renders stay on the phone, at
+            // capacitor://localhost/_capacitor_file_/… — no longer 'self'.
+            .replace("media-src 'self' blob:;", "media-src 'self' blob: capacitor:;")
+            .replace("img-src 'self' data: blob:;", "img-src 'self' data: blob: capacitor:;"),
+      },
       // Self-host ffmpeg-core so the app has zero third-party runtime
       // dependencies (no CDN calls) and works fully offline once installed.
       !ios &&
@@ -61,8 +81,8 @@ export default defineConfig(({ mode }) => {
           short_name: "Frangellboom",
           description: "Crea bucles de ida y vuelta a partir de tus propios videos, en la calidad que quieras.",
           lang: "es",
-          theme_color: "#0b0b10",
-          background_color: "#0b0b10",
+          theme_color: "#000000",
+          background_color: "#000000",
           display: "standalone",
           orientation: "portrait",
           start_url: "./",
@@ -78,7 +98,7 @@ export default defineConfig(({ mode }) => {
           // The ffmpeg-core wasm is ~30MB; raise the default 2MB precache limit
           // so it's cached for offline use instead of being skipped.
           maximumFileSizeToCacheInBytes: 40 * 1024 * 1024,
-          globPatterns: ["**/*.{js,css,html,svg,png,wasm}"],
+          globPatterns: ["**/*.{js,css,html,svg,png,wasm,woff2}"],
         },
       }),
     ],

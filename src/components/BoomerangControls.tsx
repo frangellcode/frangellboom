@@ -1,9 +1,17 @@
-import type { CSSProperties } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
+import { openPaywall, PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "../lib/pro";
 
-type AccentStyle = CSSProperties & { "--row-accent"?: string };
+function LockIcon() {
+  return (
+    <svg className="chip__lock" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.4} aria-hidden="true">
+      <rect x="2" y="5.5" width="8" height="5.5" rx="1.2" />
+      <path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" />
+    </svg>
+  );
+}
+
 
 interface BoomerangControlsProps {
   speed: Speed;
@@ -42,69 +50,72 @@ export function BoomerangControls({
 }: BoomerangControlsProps) {
   const t = useT();
   const lang = useLanguage();
-  return (
-    <div className="controls">
-      <div className="controls__header">
-        <span className="controls__heading"><FadeText value={t.settings} trigger={lang} /></span>
-      </div>
+  const isPro = useIsPro();
+  const row = (label: string, chips: React.ReactNode) => (
+    <div className="controls__row">
+      <span className="controls__label">
+        <FadeText value={label} trigger={lang} />
+      </span>
+      <div className="chips">{chips}</div>
+    </div>
+  );
 
-      <div className="controls__row" style={{ "--row-accent": "var(--accent)" } as AccentStyle}>
-        <span className="controls__label">
-          <span><FadeText value={t.mode} trigger={lang} /></span>
-        </span>
-        <div className="chips">
-          {MODES.map((value) => (
+  return (
+    <div className="controls card">
+      {row(
+        t.mode,
+        MODES.map((value) => {
+          const locked = !isPro && PRO_MODES.includes(value);
+          return (
             <button
               key={value}
               type="button"
-              className={`chip${mode === value ? " chip--active" : ""}`}
-              onClick={() => onModeChange(value)}
+              className={`chip${mode === value ? " chip--active" : ""}${locked ? " chip--locked" : ""}`}
+              onClick={() => (locked ? openPaywall() : onModeChange(value))}
             >
               <FadeText value={t.modes[value]} trigger={lang} />
+              {locked && <LockIcon />}
             </button>
-          ))}
-        </div>
-      </div>
+          );
+        }),
+      )}
 
+      {/* Only "classic" has a speed; the row eases open and shut. */}
       <div className={`controls__collapse${mode === "classic" ? " controls__collapse--open" : ""}`}>
-        <div className="controls__collapse-inner controls__collapse-inner--glow">
-          <div className="controls__row" style={{ "--row-accent": "var(--accent-4)" } as AccentStyle}>
-            <span className="controls__label">
-              <span><FadeText value={t.speed} trigger={lang} /></span>
-            </span>
-            <div className="chips">
-              {SPEED_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`chip${speed === opt.value ? " chip--active" : ""}`}
-                  onClick={() => onSpeedChange(opt.value)}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="controls__collapse-inner">
+          {row(
+            t.speed,
+            SPEED_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`chip${speed === opt.value ? " chip--active" : ""}`}
+                onClick={() => onSpeedChange(opt.value)}
+              >
+                {opt.label}
+              </button>
+            )),
+          )}
         </div>
       </div>
 
-      <div className="controls__row" style={{ "--row-accent": "var(--accent-2)" } as AccentStyle}>
-        <span className="controls__label">
-          <span><FadeText value={t.quality} trigger={lang} /></span>
-        </span>
-        <div className="chips">
-          {RESOLUTION_OPTIONS.map((opt) => (
+      {row(
+        t.quality,
+        RESOLUTION_OPTIONS.map((opt) => {
+          const locked = !isPro && PRO_RESOLUTIONS.includes(opt.value);
+          return (
             <button
               key={opt.value}
               type="button"
-              className={`chip${resolution === opt.value ? " chip--active" : ""}`}
-              onClick={() => onResolutionChange(opt.value)}
+              className={`chip${resolution === opt.value ? " chip--active" : ""}${locked ? " chip--locked" : ""}`}
+              onClick={() => (locked ? openPaywall() : onResolutionChange(opt.value))}
             >
               {opt.label}
+              {locked && <LockIcon />}
             </button>
-          ))}
-        </div>
-      </div>
+          );
+        }),
+      )}
     </div>
   );
 }

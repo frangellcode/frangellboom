@@ -45,6 +45,7 @@ export function useBoomerangPreview(
     let lastTs: number | null = null;
     let rafId: number;
     let seeking = false;
+    let seekStartedAt = 0;
     let cancelled = false;
 
     const applyZoom = () => {
@@ -56,15 +57,10 @@ export function useBoomerangPreview(
     };
     video.addEventListener("seeked", onSeeked);
 
-    // iOS Safari never decodes a frame for a <video> that hasn't played yet,
-    // so seeking it by hand (below) leaves it black. A silent play/pause
-    // "primes" the decoder first.
-    video.play().then(() => video.pause()).catch(() => {});
-    video.currentTime = start + fraction * duration;
-    applyZoom();
-
     const tick = (ts: number) => {
       if (cancelled) return;
+      // A seek WebKit dropped never reports "seeked"; don't wait on it forever.
+      if (seeking && ts - seekStartedAt > 500) seeking = false;
       if (lastTs == null) lastTs = ts;
       const dt = (ts - lastTs) / 1000;
       lastTs = ts;
@@ -90,13 +86,31 @@ export function useBoomerangPreview(
         }
         fraction = next;
         seeking = true;
+        seekStartedAt = ts;
         video.currentTime = start + fraction * duration;
       }
       rafId = requestAnimationFrame(tick);
     };
 
-    rafId = requestAnimationFrame(tick);
+    // Nothing can be seeked before the video knows its own duration: a
+    // currentTime set earlier is only remembered as a start position, and no
+    // "seeked" ever follows it — which left the preview frozen whenever the
+    // clip loaded a little slowly (a file on the phone rather than a blob).
+    const begin = () => {
+      if (cancelled) return;
+      // iOS Safari never decodes a frame for a <video> that hasn't played
+      // yet, so seeking it by hand (below) leaves it black. A silent
+      // play/pause "primes" the decoder first.
+      video.play().then(() => video.pause()).catch(() => {});
+      video.currentTime = start + fraction * duration;
+      applyZoom();
+      rafId = requestAnimationFrame(tick);
+    };
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA) begin();
+    else video.addEventListener("loadedmetadata", begin, { once: true });
+
     return () => {
+      video.removeEventListener("loadedmetadata", begin);
       cancelled = true;
       cancelAnimationFrame(rafId);
       video.removeEventListener("seeked", onSeeked);

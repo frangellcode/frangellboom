@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
-import { Confetti } from "./Confetti";
 import { isNativeApp } from "../lib/native";
 import { shareVideoNatively } from "../lib/nativeSave";
+import { Headline } from "./Headline";
 
 /** A finished loop: rendered by ffmpeg.wasm into memory on the web, or by the
  *  native engine into a file on disk in the iOS app. */
 export type LoopResult = { blob: Blob } | { url: string; uri: string };
 
 interface ResultViewProps {
+  /** Width / height, known before the video loads (see probeVideo). */
+  aspect: number;
   result: LoopResult;
   onReset: () => void;
 }
@@ -19,7 +21,7 @@ interface ResultViewProps {
 // from under it, instead of "Crear otro" cutting straight back to "upload".
 const LEAVE_MS = 250;
 
-export function ResultView({ result, onReset }: ResultViewProps) {
+export function ResultView({ result, aspect, onReset }: ResultViewProps) {
   const t = useT();
   const lang = useLanguage();
   // Create and revoke the object URL inside the same effect (rather than a
@@ -28,6 +30,7 @@ export function ResultView({ result, onReset }: ResultViewProps) {
   // that mismatch was leaving `url` pointing at a dead blob in dev mode.
   const [url, setUrl] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!("blob" in result)) {
       setUrl(result.url);
@@ -56,24 +59,36 @@ export function ResultView({ result, onReset }: ResultViewProps) {
 
   return (
     <div className={`result${leaving ? " result--leaving" : ""}`}>
-      <Confetti />
-      <p className="result__headline"><FadeText value={t.ready} trigger={lang} /></p>
-      <video src={url} className="result__video" autoPlay loop muted playsInline controls />
-      <div className="result__actions">
+      <Headline text={t.ready} />
+      <video
+        src={url}
+        className={`result__video video-fade${ready ? " video-fade--ready" : ""}`}
+        style={{ aspectRatio: aspect }}
+        autoPlay
+        loop
+        muted
+        playsInline
+        onLoadedData={() => setReady(true)}
+      />
+      <div className="actions actions--stacked">
         {isNativeApp ? (
-          <button type="button" className="btn btn--primary" onClick={handleNativeSave}>
+          <button type="button" className="button button--light" onClick={handleNativeSave}>
             <FadeText value={t.save} trigger={lang} />
           </button>
         ) : (
-          <a className="btn btn--primary" href={url} download="frangellboom.mp4">
+          <a className="button button--light" href={url} download="frangellboom.mp4">
             <FadeText value={t.download} trigger={lang} />
           </a>
         )}
-        <button type="button" className="btn btn--ghost" onClick={handleReset}>
+        <button type="button" className="link" onClick={handleReset}>
           <FadeText value={t.another} trigger={lang} />
         </button>
       </div>
-      {saveFailed && <p className="app__error"><FadeText value={t.saveFailed} trigger={lang} /></p>}
+      {saveFailed && (
+        <p className="error">
+          <FadeText value={t.saveFailed} trigger={lang} />
+        </p>
+      )}
     </div>
   );
 }

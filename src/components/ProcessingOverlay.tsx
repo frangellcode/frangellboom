@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useT } from "../lib/i18n";
-import { BoomerangMark } from "./BoomerangMark";
 
 interface ProcessingOverlayProps {
   progress: number;
@@ -17,21 +16,19 @@ export function ProcessingOverlay({ progress, label }: ProcessingOverlayProps) {
       setFlavorIndex((i) => (i + 1) % t.flavor.length);
     }, 1800);
     return () => clearInterval(id);
-  }, []);
+  }, [t.flavor.length]);
 
   return (
     <div className="processing">
-      <div className="processing__spinner-wrap">
-        <div className="processing__spinner" aria-hidden="true">
-          <BoomerangMark className="processing__mark" />
-        </div>
-      </div>
+      <svg className="processing__mark" viewBox="0 0 120 80" aria-hidden="true">
+        <path d="M20,68 C20,38 36,12 60,12 C84,12 100,38 100,68" pathLength="100" />
+      </svg>
       <p className="processing__label">{label}</p>
-      <p className="processing__flavor">{t.flavor[flavorIndex]}</p>
-      <div className="processing__bar">
-        <div className="processing__bar-fill" style={{ width: `${pct}%` }} />
-      </div>
       <p className="processing__pct">{pct}%</p>
+      <div className="processing__bar">
+        <div className="processing__bar-fill" style={{ transform: `scaleX(${progress})` }} />
+      </div>
+      <p className="processing__flavor">{t.flavor[flavorIndex]}</p>
     </div>
   );
 }

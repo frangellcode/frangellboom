@@ -1,430 +1,480 @@
-/* ---------- layout shell ---------- */
+/* Frangellboom — "Air" style. See index.css for the tokens.
+   Black canvas; white ghost buttons and light (haze) buttons, 8px radius;
+   haze cards with ink text for settings; pill toggles only for choices;
+   video and images at 11px radius. Headlines are upright with one
+   handwritten word. Motion is a short fade, nothing more. */
+
+/* ---------- shell ---------- */
 
 .app {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--void);
 }
 
-.app__header {
+.bar {
+  /* Above the processing overlay, so the status bar always sits on black. */
+  position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   flex-shrink: 0;
-  gap: 12px;
-  padding: 16px 20px;
-  padding-top: calc(16px + env(safe-area-inset-top));
-  /* position:sticky (even though nothing here actually scrolls past it) is
-     required for iOS 26 Safari to treat this as a tintable top toolbar and
-     sample its background-color for the status bar. Anchored to the
-     viewport (not this element's own small box) so the gradient it renders
-     is a seamless continuation of the rest of the page. */
-  position: sticky;
-  top: 0;
-  background-color: #991c3b;
-  background-image: var(--brand-gradient);
-  background-size: 120vw 120dvh;
-  background-position: center;
-  background-attachment: fixed;
+  padding: 10px 20px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  background: var(--void);
 }
 
-@media (display-mode: standalone) {
-  .app__header {
-    background-size: 120vw 120vh;
-  }
+.bar__wordmark {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-.app__logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  flex-shrink: 0;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 60%, transparent));
-}
-
-.app__title {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2) 45%, var(--accent-3) 80%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  /* Without the dark corners the page background used to have, this
-     gradient text can land on a page background of a similar hue and all
-     but disappear — filter:drop-shadow (unlike text-shadow) renders
-     correctly against clipped/transparent text. */
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 10px rgba(0, 0, 0, 0.3));
-}
-
-.app__tagline {
+.bar__lang {
+  padding: 6px 12px;
+  border: 1px solid var(--whiteout);
+  border-radius: var(--radius-button);
+  background: none;
   font-size: 12px;
-  color: var(--text-dim);
-  font-weight: 600;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.bar__lang:active {
+  opacity: 0.55;
 }
 
 .app__main {
   flex: 1;
   min-height: 0;
-  width: 100%;
-  margin: 0;
-  padding: 12px 20px;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  padding: 12px 20px calc(24px + env(safe-area-inset-bottom));
 }
 
-.app__error {
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.app__overlay {
-  position: fixed;
-  inset: 0;
+/* Each step is a fresh element when React swaps to it: it settles in with a
+   soft fade, after the one before has faded out (.screen--leaving). */
+.screen {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--bg) 75%, transparent);
-  backdrop-filter: blur(10px);
-  z-index: 10;
-  animation: overlay-in 0.25s ease;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  animation: fade-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
-@keyframes overlay-in {
+@keyframes fade-in {
   from {
     opacity: 0;
-  }
-  to {
-    opacity: 1;
+    transform: translateY(8px);
   }
 }
 
-/* Toggled on right before swapping to "result" — fades this out instead of
-   it just vanishing the instant the export finishes. Matches
-   OVERLAY_LEAVE_MS in App.tsx, which delays the actual step change by the
-   same amount so this has time to actually play before the element unmounts. */
-.app__overlay--leaving {
+/* Under the camera, the editor is put in place at once (see handleRecord).
+   (Doubled class: it has to beat .app::after and .app--hero::after below.) */
+.app.app--under-camera::after {
+  transition: none;
+}
+
+.screen--instant {
   animation: none;
+}
+
+.screen--leaving {
   opacity: 0;
-  transition: opacity 0.28s ease;
+  transition: opacity 0.2s ease-in;
 }
 
-/* Each step (uploader/trim/adjust/result) is a fresh element whenever React
-   swaps to it, so a plain mount animation is enough for a smooth hand-off
-   between screens without needing an animation library. */
-.uploader,
-.editor,
-.result {
-  animation: screen-in 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+/* iOS draws video on a layer of its own that doesn't follow the screen's
+   fade, so it would pop in at full strength halfway through. Each video
+   fades itself in once it has a frame to show. */
+.video-fade {
+  opacity: 0;
+  transition: opacity 0.45s ease-out;
 }
 
-@keyframes screen-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.video-fade--ready {
+  opacity: 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .uploader,
-  .editor,
-  .result,
-  .app__overlay {
-    animation: none;
-  }
-  .app__overlay--leaving,
-  .result--leaving {
-    transition: none;
-  }
+/* ---------- type ---------- */
+
+.headline {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  animation: reveal 0.7s ease-out backwards;
 }
 
-/* ---------- buttons ---------- */
+.headline em,
+.poster__line em {
+  font-family: var(--hand);
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1.3em;
+  line-height: 0.8;
+  margin: 0 0.12em 0 -0.04em;
+  /* Caveat sits a little high next to Inter capitals. */
+  vertical-align: -0.04em;
+}
 
-.btn {
+.meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--whiteout);
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-button);
+}
+
+/* ---------- actions ---------- */
+
+.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 18px;
-  border: none;
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 700;
+  border: 1px solid var(--whiteout);
+  border-radius: var(--radius-button);
+  background: none;
+  color: var(--whiteout);
+  font-size: 15px;
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease, box-shadow 0.2s ease;
+  transition: opacity 0.15s ease;
   user-select: none;
 }
 
-.btn:hover {
-  transform: translateY(-1px);
+.button:active {
+  opacity: 0.55;
 }
 
-.btn:active {
-  transform: scale(0.96);
+.button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
-.btn__mark {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.btn--primary {
+.button--light {
   flex: 1;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #ffffff;
-  box-shadow: 0 8px 24px -6px color-mix(in srgb, var(--accent) 65%, transparent);
+  border-color: var(--haze);
+  background: var(--haze);
+  color: var(--ink);
 }
 
-.btn--secondary {
-  background: linear-gradient(135deg, var(--accent-3), var(--accent-4));
-  color: #ffffff;
-  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--accent-3) 55%, transparent);
+/* On a haze card. */
+.button--ink {
+  border-color: var(--ink);
+  background: var(--haze);
+  color: var(--ink);
 }
 
-.btn--ghost {
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-/* ---------- uploader ---------- */
-
-/* Fills the space below the header so the uploader card lands mid-screen
-   instead of hugging the top — on a phone, the top edge is the hardest
-   spot to reach one-handed. Unequal flex spacers (instead of
-   justify-content: center) settle it slightly above dead-center, which
-   reads more natural than perfect centering. */
-.upload-screen {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.upload-screen::before {
-  content: "";
-  flex: 0.8;
-}
-
-.upload-screen::after {
-  content: "";
-  flex: 1.2;
-}
-
-.uploader-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 30px;
-}
-
-.uploader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 12px;
-  padding: 48px 24px;
-  border: 2px dashed var(--border);
-  border-radius: 22px;
+.link {
+  align-self: center;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 2px solid var(--whiteout);
+  background: none;
+  color: var(--whiteout);
+  font-size: 14px;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  transition: opacity 0.15s ease;
 }
 
-.uploader:hover,
-.uploader:focus-visible {
-  border-color: var(--accent);
-  outline: none;
-  transform: scale(1.01);
+.link:active {
+  opacity: 0.55;
 }
 
-.uploader--dragging {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  transform: scale(1.02);
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
 }
 
-.uploader__input {
+.actions--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+/* ---------- cards ---------- */
+
+.card {
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--haze);
+  color: var(--ink);
+}
+
+/* ---------- home ---------- */
+
+/* The home screen sits on a cloud sky that runs under the status bar and
+   drifts very slowly; everything after it is the black canvas. */
+.app {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* The sky is always there, under a black veil. On the home screen the veil
+   lifts; on every other step it settles back over the sky — so going from
+   one to the other is a slow dusk or dawn, never a cut. */
+.app::before {
+  content: "";
   position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
+  inset: -4%;
+  z-index: -1;
+  background: url("./assets/sky.jpg") center / cover no-repeat;
+  animation: drift 48s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from {
+    transform: scale(1.06) translate3d(-1.5%, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(1.5%, -1%, 0);
+  }
+}
+
+.app::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--void);
+  opacity: 1;
+  transition: opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
-.uploader__icon {
-  width: 84px;
-  height: 84px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 38px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-3));
-  box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--accent) 60%, transparent);
-  animation: float 3.5s ease-in-out infinite;
+.app--hero::after {
+  opacity: 0;
+  transition-duration: 0.9s;
+}
+
+/* The canvas itself stays clear so the veil and the sky show through. */
+.app,
+.app .bar {
+  background: none;
+}
+
+.glass {
+  width: min(52vw, 220px);
+  align-self: center;
+  overflow: visible;
+  animation: float 6s ease-in-out infinite alternate, glass-reveal 1s ease-out backwards;
+}
+
+/* Only fades the arc in: moving it as well would fight the float for the
+   transform and make the arc jump when the reveal lets go. */
+@keyframes glass-reveal {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+  }
 }
 
 @keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
+  from {
+    transform: translateY(-5px) rotate(-2deg);
   }
-  50% {
-    transform: translateY(-6px);
+  to {
+    transform: translateY(5px) rotate(2deg);
   }
 }
 
-.uploader__title {
-  font-size: 19px;
-  font-weight: 800;
+.glass__body {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 34;
+  stroke-linecap: round;
 }
 
-/* The uploader card has no background fill, so this hint sits directly on
-   the brand gradient. A larger, near-full-opacity weight plus a stacked
-   text-shadow (tight + wide) keeps it legible without boxing it in a scrim,
-   which read oddly next to the badge pills below. */
-.uploader__hint {
-  color: var(--text);
-  opacity: 0.85;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  max-width: 30ch;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 2px 14px rgba(0, 0, 0, 0.35);
+.glass__rim {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  transform: translateY(-15px);
+  transform-origin: center;
+  transform-box: fill-box;
+  opacity: 0.8;
 }
 
-.uploader__badges {
+.glass__streak {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+/* Headlines arrive the way they do on the reference: out of a soft blur. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(12px);
+  }
+}
+
+.uploader {
+  flex: 1;
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
   justify-content: center;
-  gap: 10px;
-  margin-top: 6px;
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: color-mix(in srgb, #000 35%, transparent);
+  gap: 28px;
+  border: 1px dashed transparent;
+  border-radius: var(--radius-card);
+  transition: border-color 0.15s ease;
 }
 
-.uploader__badges-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  opacity: 0.7;
+.uploader--dragging {
+  border-color: var(--whiteout);
 }
 
-.badge {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+.uploader__input {
+  display: none;
+}
+
+.poster {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Poster-scale word, as wide as the screen whatever the language. */
+.poster__word {
+  --chars: 4;
+  animation: reveal 0.9s 0.1s ease-out backwards;
+  margin: 0 -8px;
+  font-family: var(--poster);
+  font-size: min(calc(96vw / (var(--chars) * 0.5)), 240px);
+  line-height: 0.85;
   text-transform: uppercase;
-  color: var(--text-dim);
+  text-align: center;
+}
+
+.poster__line {
+  color: var(--ink);
+  animation: reveal 0.9s 0.25s ease-out backwards;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.uploader .button {
+  flex: none;
+  width: 100%;
+}
+
+/* Second action on the sky: a ghost button that stays readable on it. */
+.button--sky {
+  margin-top: -16px;
+  border-color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--ink);
+}
+
+.app--intro .uploader > .button--sky {
+  animation: rise 0.8s 1.4s ease-out backwards;
 }
 
 .uploader__error {
-  color: var(--accent);
+  color: var(--ink);
+}
+
+.uploader__hint,
+.uploader__meta {
+  color: rgba(27, 27, 27, 0.6);
+  font-size: 13px;
+  text-align: center;
+}
+
+.uploader__hint {
+  margin-top: -16px;
+}
+
+.uploader__error {
   font-size: 14px;
-  font-weight: 600;
+  text-align: center;
 }
 
-/* ---------- editor ---------- */
-
-/* Same unequal-spacer centering as upload-screen, so the trim card lands
-   mid-screen like the uploader instead of hugging the top. */
-.trim-screen {
-  flex: 1;
-  min-height: 0;
+.support {
+  order: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-top: 12px;
 }
 
-.trim-screen::before {
-  content: "";
-  flex: 0.8;
-  min-height: 0;
-}
-
-.trim-screen::after {
-  content: "";
-  flex: 1.2;
-  min-height: 0;
-}
-
-/* Same unequal-spacer centering as upload-screen/trim-screen, so this step
-   lands mid-screen too. On tall content the spacers just collapse toward 0
-   (flex-basis 0%, no min-height) instead of forcing a scroll. */
-.adjust-screen {
-  flex: 1;
-  min-height: 0;
+.support__pill {
   display: flex;
-  flex-direction: column;
-}
-
-.adjust-screen::before {
-  content: "";
-  flex: 0.8;
-  min-height: 0;
-}
-
-.adjust-screen::after {
-  content: "";
-  flex: 1.2;
-  min-height: 0;
-}
-
-.result-screen {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.result-screen::before {
-  content: "";
-  flex: 0.8;
-  min-height: 0;
-}
-
-.result-screen::after {
-  content: "";
-  flex: 1.2;
-  min-height: 0;
-}
-
-.editor {
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius-button);
+  background: rgba(255, 255, 255, 0.35);
+  color: rgba(27, 27, 27, 0.7);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
 }
 
-.editor__actions {
+.support__pill strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.support__divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(27, 27, 27, 0.25);
+}
+
+.support__follow {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 6px;
+  color: rgba(27, 27, 27, 0.6);
+  font-size: 13px;
 }
 
-/* ---------- trimmer ---------- */
+/* Only the handle is the link — tapping the rest of the line does nothing. */
+.support__follow a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 2px solid var(--ink);
+  transition: opacity 0.15s ease;
+}
+
+.support__pill:active,
+.support__follow a:active {
+  opacity: 0.55;
+}
+
+.support__follow svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- trim ---------- */
 
 .trimmer {
   display: flex;
@@ -433,401 +483,169 @@
 }
 
 .trimmer__video-wrap {
-  position: relative;
-  background: #000;
-  border-radius: 18px;
+  border-radius: var(--radius-image);
+  background: #0d0d0d;
   overflow: hidden;
-  display: flex;
-  justify-content: center;
-  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
 }
 
+/* Its aspect-ratio comes from the source (set inline), so the box has its
+   final size before the video loads. */
 .trimmer__video {
+  display: block;
   width: 100%;
-  max-height: 50svh;
+  max-height: 44svh;
   object-fit: contain;
-  background: #000;
 }
 
 .trimmer__track {
   position: relative;
-  height: 48px;
-  border-radius: 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  height: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-button);
   cursor: pointer;
   touch-action: none;
 }
 
 .trimmer__window {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  min-width: 24px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  top: -1px;
+  bottom: -1px;
+  min-width: 28px;
+  border: 1px solid var(--whiteout);
+  border-radius: var(--radius-button);
+  background: rgba(255, 255, 255, 0.12);
   cursor: grab;
   touch-action: none;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-.trimmer__window:active {
-  cursor: grabbing;
+.trimmer__window::before,
+.trimmer__window::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--whiteout);
+  translate: 0 -50%;
 }
 
 .trimmer__window::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 18px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.7);
-  transform: translate(-50%, -50%);
+  left: 6px;
+}
+
+.trimmer__window::after {
+  right: 6px;
 }
 
 .trimmer__labels {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text);
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-/* This row sits directly on the brand gradient (no card behind it), and
-   --text-dim at low weight wasn't enough once the gradient reaches its
-   brighter orange/gold stops — same fix as the uploader badges: a
-   near-opaque dark scrim plus full-brightness text keeps it legible
-   everywhere instead of just riding on text-shadow. */
-.trimmer__labels span {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, #000 55%, transparent);
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* ---------- live preview ---------- */
+.field__label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+.field__value {
+  font-variant-numeric: tabular-nums;
+}
+
+.range {
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.range::-moz-range-track {
+  height: 2px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.range::-webkit-slider-thumb {
+  width: 24px;
+  height: 24px;
+  margin-top: -11px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--whiteout);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--whiteout);
+}
+
+/* ---------- adjust ---------- */
 
 .preview {
   position: relative;
-  background: #000;
-  border-radius: 18px;
-  overflow: hidden;
   display: flex;
   justify-content: center;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent), 0 16px 36px -14px rgba(0, 0, 0, 0.65);
+  border-radius: var(--radius-image);
+  background: #0d0d0d;
+  overflow: hidden;
 }
 
 .preview__video {
+  display: block;
   width: 100%;
-  max-height: 34svh;
+  max-height: 32svh;
   object-fit: contain;
-  background: #000;
-  transition: transform 0.25s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.45s ease-out;
 }
 
-/* "Zoom punch" mode: useBoomerangPreview toggles this class on the reverse
-   leg to mirror the export's zoom-in-on-the-way-back effect. */
 .preview__video--zoom {
   transform: scale(1.15);
 }
 
-.preview__live-badge {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, #000 55%, transparent);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  backdrop-filter: blur(6px);
-}
-
-.preview__live-badge::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: pulse-dot 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.4;
-    transform: scale(0.7);
-  }
-}
-
-.preview__toggle {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 50%;
-  background: color-mix(in srgb, #000 55%, transparent);
-  color: #fff;
-  font-size: 15px;
-  backdrop-filter: blur(6px);
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-
-.preview__toggle:active {
-  transform: scale(0.9);
-}
-
-.preview__toggle svg {
-  width: 20px;
-  height: 20px;
-}
-
-.total-duration {
-  align-self: center;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-dim);
-  /* Sits directly on the brand gradient (no card behind it). A translucent
-     dark scrim (same idiom as .preview__live-badge) keeps both the dim
-     label text and the gradient-clipped numbers below legible everywhere
-     on the gradient, including its brighter orange/gold stops. */
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, #000 40%, transparent);
-}
-
-.total-duration strong {
-  background: linear-gradient(90deg, var(--accent), var(--accent-3));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* ---------- controls ---------- */
-
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-}
-
-.controls__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.controls__heading {
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-dim);
-}
-
-.controls__row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 10px;
-  border-left: 3px solid var(--row-accent, var(--accent));
-}
-
-/* Smoothly grows/shrinks the Velocidad row when switching modes, instead of
-   the card snapping to its new height instantly. The 0fr/1fr grid-rows trick
-   animates an intrinsically-sized element without knowing its height ahead
-   of time — the inner wrapper clips the content while it's collapsing. */
-.controls__collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.28s ease;
-}
-
-.controls__collapse--open {
-  grid-template-rows: 1fr;
-}
-
-.controls__collapse-inner {
-  overflow: hidden;
-  min-height: 0;
-  /* No padding here — this element is the one the grid stretches to 0
-     height when collapsed, and content-box padding would still occupy
-     space on top of that "0", leaving a visible sliver (exactly what was
-     happening: the row never fully closed). Any extra breathing room has
-     to live on a descendant instead, so it collapses away with the rest of
-     the content. */
-}
-
-/* Only the Velocidad row needs this — the fps note collapse reuses the same
-   wrapper but is a plain rounded card with no glow, so the fade below would
-   just blur its own bottom edge into a half-finished-looking cutoff instead
-   of a clean rounded corner. */
-.controls__collapse-inner--glow {
-  /* The active chip's glow trails off past where the padding below gives it
-     room, so overflow:hidden's crisp cut still showed as a faint line.
-     Fading the last stretch of the box to transparent (instead of a hard
-     edge) hides that cut — by the time it happens there's nothing left to
-     see the seam of. */
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 8px), transparent 100%);
-  mask-image: linear-gradient(to bottom, black calc(100% - 8px), transparent 100%);
-}
-
-/* The active chip's glow (box-shadow) extends past its own box — without
-   this room, the fade above would have to eat into the chip itself. Keep
-   this taller than the fade zone above (8px), so the fade only touches the
-   glow's fading tail, never the chip's own visible pill. Scoped to rows
-   inside a collapsible section only — Modo/Calidad's rows sit directly in
-   the (non-clipping) card, so their glow was never at risk of being cut
-   off. */
-.controls__collapse-inner .controls__row {
-  padding-top: 2px;
-  padding-bottom: 10px;
-}
-
-.controls__note {
-  font-size: 11px;
-  color: var(--text-dim);
-  margin: 0;
-}
-
-.controls__label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.controls__value {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--row-accent, var(--accent));
-  background: color-mix(in srgb, var(--row-accent, var(--accent)) 16%, transparent);
-  padding: 2px 10px;
-  border-radius: 999px;
-}
-
-.controls input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
+/* Holds the preview's exact box while its clip is being made (a recording
+   comes straight here), with the same spinner as the processing screen. */
+.preview__placeholder {
   width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--border);
-  outline: none;
+  max-height: 32svh;
 }
 
-.controls input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 24px;
-  height: 24px;
+.preview--waiting::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.85);
   border-radius: 50%;
-  background: var(--row-accent, var(--accent));
-  border: 3px solid var(--surface);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--row-accent, var(--accent)) 60%, transparent);
-  cursor: pointer;
-}
-
-.controls input[type="range"]::-moz-range-thumb {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--row-accent, var(--accent));
-  border: 3px solid var(--surface);
-  cursor: pointer;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.chip:active {
-  transform: scale(0.94);
-}
-
-.chip--active {
-  background: var(--row-accent, var(--accent));
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 3px 8px -2px color-mix(in srgb, var(--row-accent, var(--accent)) 60%, transparent);
-  transform: scale(1.04);
-}
-
-/* ---------- processing ---------- */
-
-.processing {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 32px 24px;
-  text-align: center;
-}
-
-.processing__spinner-wrap {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: conic-gradient(from 0deg, var(--accent), var(--accent-2), var(--accent-3), var(--accent-4), var(--accent));
-  animation: spin 2.2s linear infinite;
-  box-shadow: 0 0 30px -4px color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-.processing__spinner {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  animation: spin-reverse 1.6s linear infinite;
-}
-
-.processing__mark {
-  width: 32px;
-  height: 32px;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -836,324 +654,483 @@
   }
 }
 
-@keyframes spin-reverse {
+.preview__live-badge {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+}
+
+.preview__live-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.preview__toggle {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--whiteout);
+  border-radius: var(--radius-button);
+  background: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.preview__toggle:active {
+  opacity: 0.55;
+}
+
+.preview__toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.controls__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.controls__label {
+  font-size: 14px;
+}
+
+.controls__collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-bottom: -16px;
+  transition: grid-template-rows 0.25s ease, margin-bottom 0.25s ease;
+}
+
+.controls__collapse--open {
+  grid-template-rows: 1fr;
+  margin-bottom: 0;
+}
+
+/* No padding here: this is what the grid shrinks to zero when collapsed. */
+.controls__collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.chip {
+  padding: 7px 11px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chip--active {
+  background: var(--ink);
+  color: var(--whiteout);
+}
+
+/* ---------- processing ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--void);
+  animation: overlay-in 0.2s ease-out;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* When the loop is done only the progress fades: the black stays up over
+   the settings screen, and the result fades in on that same black — the
+   settings never show again in between. */
+.overlay--leaving .processing {
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.processing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: min(86vw, 340px);
+}
+
+/* The arc draws itself forward and then back, over and over. */
+.processing__mark {
+  width: 72px;
+}
+
+.processing__mark path {
+  fill: none;
+  stroke: var(--whiteout);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  animation: draw 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 100;
+  }
   to {
-    transform: rotate(-360deg);
+    stroke-dashoffset: 0;
   }
 }
 
 .processing__label {
-  font-weight: 800;
   font-size: 16px;
 }
 
-.processing__flavor {
-  font-size: 13px;
-  color: var(--text-dim);
-  min-height: 18px;
+.processing__pct {
+  font-family: var(--poster);
+  font-size: 120px;
+  line-height: 0.85;
+  font-variant-numeric: tabular-nums;
 }
 
 .processing__bar {
   width: 100%;
-  max-width: 260px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--border);
+  height: 2px;
+  background: var(--hairline);
   overflow: hidden;
 }
 
 .processing__bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
-  background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
-  transition: width 0.2s ease;
+  background: var(--whiteout);
+  transform-origin: left;
+  transition: transform 0.3s ease;
 }
 
-@keyframes shimmer {
-  to {
-    background-position: -200% 0;
-  }
-}
-
-.processing__pct {
-  font-size: 13px;
-  color: var(--text-dim);
-  font-weight: 700;
+.processing__flavor {
+  font-family: var(--hand);
+  color: var(--muted);
+  font-size: 22px;
 }
 
 /* ---------- result ---------- */
 
 .result {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  align-items: center;
+  transition: opacity 0.25s ease;
 }
 
-/* Toggled by ResultView right before "Crear otro" calls onReset — fades
-   this out instead of it cutting straight back to the upload screen. */
 .result--leaving {
-  animation: none;
   opacity: 0;
-  transform: translateY(-10px) scale(0.98);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-.result__headline {
-  font-size: 17px;
-  font-weight: 800;
-  text-align: center;
 }
 
 .result__video {
+  display: block;
   width: 100%;
   max-height: 60svh;
-  border-radius: 18px;
-  background: #000;
-  box-shadow: var(--shadow);
+  object-fit: contain;
+  border-radius: var(--radius-image);
+  background: #0d0d0d;
 }
 
-.result__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  width: 100%;
-}
+/* ---------- Frangellboom Pro (iOS app) ---------- */
 
-.result__actions .btn {
-  flex: 1;
-  min-width: 120px;
-}
-
-/* ---------- confetti ---------- */
-
-.confetti {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.confetti__piece {
-  position: absolute;
-  top: -5vh;
-  border-radius: 2px;
-  animation-name: confetti-fall;
-  animation-timing-function: cubic-bezier(0.35, 0, 0.65, 1);
-  animation-fill-mode: forwards;
-}
-
-@keyframes confetti-fall {
-  0% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translate3d(var(--drift), 115vh, 0) rotate(var(--rotate));
-    opacity: 0.85;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .confetti {
-    display: none;
-  }
-  .uploader__icon {
-    animation: none;
-  }
-  .processing__spinner-wrap,
-  .processing__spinner,
-  .processing__bar-fill {
-    animation: none;
-  }
-}
-
-/* ---------- language switch ---------- */
-
-.app__lang {
-  margin-left: auto;
-  align-self: center;
-  padding: 4px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 999px;
-  background: color-mix(in srgb, #000 20%, transparent);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.app__lang:active {
-  transform: scale(0.9);
-}
-
-/* ---------- support footer (home screen) ---------- */
-
-/* order:1 puts it after .upload-screen::after, so the spacers keep centering
-   the uploader and this sits on its own at the very bottom. */
-.support {
-  order: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding-top: 16px;
-}
-
-.support__pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px 8px 16px;
-  border: none;
-  border-radius: 999px;
-  background: color-mix(in srgb, #000 30%, transparent);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.support__pill strong {
-  color: #fff;
-}
-
-.support__pill:active,
-.support__follow a:active {
-  transform: scale(0.95);
-}
-
-.support__divider {
-  width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.support__follow {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 12px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-}
-
-/* Only the handle is the link — tapping the rest of the line does nothing. */
-.support__follow a {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  color: inherit;
-  font-weight: 700;
-  text-decoration: none;
-  transition: transform 0.2s ease;
-}
-
-.support__follow svg {
-  width: 14px;
-  height: 14px;
-  margin-left: 2px;
-}
-
-/* ---------- tip jar (iOS app) ---------- */
-
-.tipjar {
+/* Opening, the screen behind dims while the card rises into
+   place and settles; closing is the same in reverse, a little quicker.
+   (Each state's transition is the one used on the way INTO it, so the
+   base rules time the close and --visible times the open. CLOSE_MS in
+   ProSheet.tsx waits for the close.) No backdrop blur: re-blurring the
+   live preview under it every frame made the close stutter on the phone. */
+.prosheet {
   position: fixed;
   inset: 0;
   z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  opacity: 0;
+  padding: 20px;
   pointer-events: none;
-  transition: opacity 0.25s ease;
 }
 
-.tipjar--visible {
-  opacity: 1;
+.prosheet--visible {
   pointer-events: auto;
 }
 
-.tipjar__backdrop {
+.prosheet__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.72);
+  opacity: 0;
+  transition: opacity 0.28s ease-out;
+  will-change: opacity;
 }
 
-.tipjar__card {
+.prosheet--visible .prosheet__backdrop {
+  opacity: 1;
+  transition: opacity 0.4s ease-out;
+}
+
+.prosheet__card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
   width: 100%;
-  max-width: 320px;
-  padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  text-align: center;
-  transform: translateY(12px) scale(0.96);
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  max-width: 340px;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--haze);
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+  transition:
+    opacity 0.24s ease-out,
+    transform 0.28s cubic-bezier(0.3, 0, 0.2, 1);
+  will-change: opacity, transform;
 }
 
-.tipjar--visible .tipjar__card {
+.prosheet--visible .prosheet__card {
+  opacity: 1;
   transform: none;
+  transition:
+    opacity 0.32s ease-out 0.04s,
+    transform 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+    height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.tipjar__title {
-  font-size: 17px;
-  font-weight: 800;
-}
-
-.tipjar__body,
-.tipjar__status {
-  color: var(--text-dim);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.tipjar__message {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.tipjar__products {
+/* The padding lives here so the card's height is exactly this box's. */
+.prosheet__content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100%;
+  gap: 12px;
+  padding: 20px;
 }
 
-.tipjar__product {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface-2);
+/* A new line inside (thanks, pending, not found) fades in rather than
+   appearing in a single frame. */
+.prosheet__message,
+.prosheet__status {
+  animation: fade-in 0.3s ease-out backwards;
+}
+
+.prosheet__title {
+  font-family: var(--poster);
+  font-size: 30px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.prosheet__body,
+.prosheet__status {
+  color: rgba(27, 27, 27, 0.65);
   font-size: 14px;
-  cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
-.tipjar__product:active {
-  transform: scale(0.97);
+.prosheet__features {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 6px;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  font-weight: 500;
 }
 
-.tipjar__product--dimmed {
-  opacity: 0.4;
+.prosheet__features li::before {
+  content: "✓";
+  margin-right: 8px;
 }
 
-.tipjar__close {
+.prosheet__message {
+  font-size: 16px;
+}
+
+.prosheet__wide {
   width: 100%;
-  flex: none;
+}
+
+.prosheet__buy {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--haze);
+}
+
+.prosheet__not-now {
+  color: rgba(27, 27, 27, 0.65);
+}
+
+/* A Pro option for someone without Pro: still there to see, with a small
+   lock, and tapping it opens the Pro sheet. */
+.chip--locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(27, 27, 27, 0.5);
+}
+
+.chip__lock {
+  width: 10px;
+  height: 10px;
+}
+
+/* ---------- cold-start intro ---------- */
+
+/* The launch screen is the sky, full screen. Until the intro is ready the web
+   app shows exactly that frame (the sky box is 108% wide for the drift, so
+   0.926 scales it back to the screen) and nothing else — so taking the launch
+   screen down shows no change at all. */
+.app--waiting::before {
+  animation: none;
+  transform: scale(0.926);
+}
+
+.app--waiting .bar,
+.app--waiting .screen {
+  opacity: 0;
+}
+
+/* Then the home screen assembles itself: the sky eases in towards the
+   camera, the glass arc floats down out of the haze, LOOP rises letter by
+   letter, and the line, button and footer follow. */
+.app--intro::before {
+  animation:
+    sky-in 2.4s cubic-bezier(0.22, 0.8, 0.2, 1) both,
+    drift 48s 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes sky-in {
+  from {
+    transform: scale(0.926);
+  }
+  to {
+    transform: scale(1.06) translate3d(-1.5%, 0, 0);
+  }
+}
+
+.app--intro .screen {
+  animation: none;
+}
+
+.app--intro .bar {
+  animation: rise 0.8s 1.5s ease-out backwards;
+}
+
+.app--intro .glass {
+  animation:
+    float 6s 1.65s ease-in-out infinite alternate,
+    glass-in 1.5s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* Lands exactly on the float's first frame, which takes over the moment
+   this ends — so the arc settles into its sway instead of snapping to it. */
+@keyframes glass-in {
+  from {
+    opacity: 0;
+    transform: translateY(-70px) scale(0.88) rotate(-6deg);
+    filter: blur(18px);
+  }
+  to {
+    transform: translateY(-5px) rotate(-2deg);
+  }
+}
+
+/* The word's 0.85 line height leaves the tops of the glyphs outside each
+   letter's box, and WebKit clips a filtered element to its box — so while
+   the blur runs, every letter showed a flat cut along its top. The padding
+   gives the glyphs (and the blur) room; the negative margin keeps the
+   layout exactly where it was. */
+.poster__letter {
+  display: inline-block;
+  padding: 0.25em 0.08em;
+  margin: -0.25em -0.08em;
+}
+
+.app--intro .poster__word {
+  animation: none;
+}
+
+.app--intro .poster__letter {
+  animation: letter-in 0.9s calc(0.5s + var(--i) * 0.09s) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes letter-in {
+  from {
+    opacity: 0;
+    transform: translateY(45%);
+    filter: blur(12px);
+  }
+}
+
+.app--intro .poster__line {
+  animation: reveal 0.9s 1.05s ease-out backwards;
+}
+
+.app--intro .uploader > .button {
+  animation: rise 0.8s 1.3s ease-out backwards;
+}
+
+.app--intro .uploader__meta,
+.app--intro .uploader__hint {
+  animation: rise 0.8s 1.45s ease-out backwards;
+}
+
+.app--intro .support {
+  animation: rise 0.8s 1.6s ease-out backwards;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app--intro::before,
+  .app--intro .bar,
+  .app--intro .glass,
+  .app--intro .poster__letter,
+  .app--intro .poster__line,
+  .app--intro .uploader > .button,
+  .app--intro .uploader__meta,
+  .app--intro .support {
+    animation-duration: 0.01s;
+    animation-delay: 0s;
+  }
 }

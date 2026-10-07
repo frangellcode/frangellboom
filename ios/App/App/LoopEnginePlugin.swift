@@ -1,5 +1,7 @@
 import AVFoundation
 import Capacitor
+import CoreImage
+import UIKit
 import VideoToolbox
 
 /// The iOS app's video engine: builds the loop with AVFoundation, on the
@@ -47,7 +49,8 @@ public class LoopEnginePlugin: CAPPlugin, CAPBridgedPlugin {
             mode: mode,
             speed: call.getDouble("speed") ?? 1,
             loops: max(1, call.getInt("loops") ?? 1),
-            shortSide: call.getInt("shortSide")
+            shortSide: call.getInt("shortSide"),
+            watermark: call.getBool("watermark") ?? false
         )
         run(call, output: "loop.mp4") { engine, output in
             try await engine.renderLoop(request, to: output) { [weak self] fraction in
@@ -102,10 +105,12 @@ struct LoopRequest {
     let loops: Int
     /// The output's short side in pixels, or nil to keep the source's.
     let shortSide: Int?
+    /// The free version's "Frangellboom" mark in the corner; Pro leaves it off.
+    let watermark: Bool
 
     /// The same loop, made from a file that already holds just the segment.
     func startingAtZero(from url: URL) -> LoopRequest {
-        LoopRequest(source: url, start: 0, duration: duration, mode: mode, speed: speed, loops: loops, shortSide: shortSide)
+        LoopRequest(source: url, start: 0, duration: duration, mode: mode, speed: speed, loops: loops, shortSide: shortSide, watermark: watermark)
     }
 }
 
@@ -285,7 +290,8 @@ final class LoopEngine {
             zoomRanges: builder.zoomRanges,
             to: cycleURL,
             codec: .hevc,
-            keyframeEveryFrame: false
+            keyframeEveryFrame: false,
+            watermark: request.watermark ? Watermark(renderSize: renderSize) : nil
         ) { progress(reverseEnd + $0 * (1 - reverseEnd) * 0.97) }
         stage("render cycle")
         if cycleURL != output {
@@ -623,6 +629,7 @@ final class LoopEngine {
         to url: URL,
         codec: Codec,
         keyframeEveryFrame: Bool,
+        watermark: Watermark? = nil,
         progress: @escaping (Double) -> Void
     ) async throws {
         let oriented = source.orientedSize
@@ -675,6 +682,15 @@ final class LoopEngine {
             keepsColor: keepsColor
         ))
         input.expectsMediaDataInRealTime = false
+        // Marked frames are drawn into fresh buffers from the writer's pool.
+        let adaptor = watermark.map { _ in
+            AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: keepsColor ? source.pixelFormat : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                kCVPixelBufferWidthKey as String: Int(renderSize.width),
+                kCVPixelBufferHeightKey as String: Int(renderSize.height),
+                kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+            ])
+        }
         writer.add(input)
 
         guard reader.startReading() else { throw reader.error ?? LoopError.failed("Couldn't read the composition.") }
@@ -687,7 +703,16 @@ final class LoopEngine {
             while !input.isReadyForMoreMediaData {
                 try await Task.sleep(nanoseconds: 2_000_000)
             }
-            guard input.append(sample) else { throw writer.error ?? LoopError.failed("Couldn't write the video.") }
+            if let watermark, let adaptor {
+                guard let frame = CMSampleBufferGetImageBuffer(sample),
+                      let pool = adaptor.pixelBufferPool,
+                      let marked = watermark.draw(on: frame, pool: pool),
+                      adaptor.append(marked, withPresentationTime: CMSampleBufferGetPresentationTimeStamp(sample)) else {
+                    throw writer.error ?? LoopError.failed("Couldn't write the video.")
+                }
+            } else {
+                guard input.append(sample) else { throw writer.error ?? LoopError.failed("Couldn't write the video.") }
+            }
             if total > 0 { progress(min(1, CMSampleBufferGetPresentationTimeStamp(sample).seconds / total)) }
         }
         if reader.status == .failed {
@@ -741,6 +766,57 @@ final class LoopEngine {
             AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
         ]
         return settings
+    }
+}
+
+/// The free version's mark: "Frangellboom" in the bottom-right corner, white
+/// and half see-through with a soft shadow, sized to the video. Drawn once
+/// into an image, then laid over every frame with Core Image, in the frame's
+/// own colour space — an HDR (HLG) frame stays HDR under it.
+final class Watermark {
+    private let image: CIImage
+    private let context = CIContext(options: [.workingFormat: CIFormat.RGBAh, .cacheIntermediates: false])
+
+    init(renderSize: CGSize) {
+        let short = min(renderSize.width, renderSize.height)
+        let font = UIFont.systemFont(ofSize: max(12, short * 0.032), weight: .semibold)
+        let shadow = NSShadow()
+        shadow.shadowColor = UIColor.black.withAlphaComponent(0.35)
+        shadow.shadowBlurRadius = font.pointSize * 0.25
+        shadow.shadowOffset = .zero
+        let text = NSAttributedString(string: "Frangellboom", attributes: [
+            .font: font,
+            .foregroundColor: UIColor.white.withAlphaComponent(0.8),
+            .shadow: shadow,
+            .kern: -font.pointSize * 0.01,
+        ])
+        let pad = font.pointSize * 0.4
+        let textSize = text.size()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let drawn = UIGraphicsImageRenderer(size: CGSize(width: ceil(textSize.width + pad * 2), height: ceil(textSize.height + pad * 2)), format: format).image { _ in
+            text.draw(at: CGPoint(x: pad, y: pad))
+        }
+        let margin = short * 0.035
+        let mark = CIImage(image: drawn) ?? CIImage.empty()
+        // Core Image's origin is bottom-left: this puts it in the bottom-right.
+        image = mark.transformed(by: CGAffineTransform(
+            translationX: renderSize.width - mark.extent.width - margin + pad,
+            y: margin - pad))
+    }
+
+    /// A copy of `frame` with the mark on it, in a buffer from `pool`.
+    func draw(on frame: CVPixelBuffer, pool: CVPixelBufferPool) -> CVPixelBuffer? {
+        var output: CVPixelBuffer?
+        guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &output) == kCVReturnSuccess, let output else { return nil }
+        CVBufferPropagateAttachments(frame, output)
+        let background = CIImage(cvPixelBuffer: frame)
+        let colorSpace = CVImageBufferGetColorSpace(frame)?.takeUnretainedValue()
+            ?? background.colorSpace
+            ?? CGColorSpace(name: CGColorSpace.itur_709)!
+        context.render(image.composited(over: background), to: output, bounds: background.extent, colorSpace: colorSpace)
+        return output
     }
 }
 

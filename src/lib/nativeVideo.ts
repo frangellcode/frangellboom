@@ -32,6 +32,8 @@ interface LoopEnginePlugin {
     speed: Speed;
     loops: number;
     shortSide?: number;
+    /** The free version's mark in the corner (see Watermark in LoopEnginePlugin.swift). */
+    watermark?: boolean;
   }): Promise<RenderedFile>;
   preview(options: { path: string; start: number; duration: number }): Promise<RenderedFile>;
   addListener(event: "progress", listener: (data: { fraction: number }) => void): Promise<{ remove(): Promise<void> }>;
@@ -49,6 +51,34 @@ export async function pickVideoNatively(): Promise<VideoSource | null> {
   const { video } = await VideoPicker.pick();
   if (!video) return null;
   return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
+}
+
+interface CameraPlugin {
+  record(options: { maxDuration: number; hint: string }): Promise<{ video?: { webPath: string; path: string; name: string } }>;
+  close(): Promise<void>;
+}
+
+/** ios/App/App/CameraPlugin.swift */
+const Camera = registerPlugin<CameraPlugin>("Camera");
+
+/** Longest clip the camera records, as Instagram's boomerang does: 0.75 s,
+ *  which in slow motion is a 3 s there-and-back played four times (12 s),
+ *  and at normal speed 1.5 s eight times. A recording is the whole segment,
+ *  so it goes straight to shaping the loop, no trimming. */
+export const MAX_RECORDING_SECONDS = 0.75;
+
+/** Opens the app's own camera. Resolves to null if the person closes it
+ *  without recording; rejects with code "DENIED" when camera access is off.
+ *  After a recording the camera stays up until closeCameraNatively(). */
+export async function recordVideoNatively(hint: string): Promise<VideoSource | null> {
+  const { video } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint });
+  if (!video) return null;
+  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
+}
+
+/** Fades the camera away — call once the screen that follows is in place. */
+export async function closeCameraNatively(): Promise<void> {
+  await Camera.close();
 }
 
 /** A video that reached the app as a File (not through the picker) has to be
@@ -72,7 +102,7 @@ const SHORT_SIDE: Record<Resolution, number | undefined> = {
  *  webview's memory limits. */
 export async function createLoopNatively(
   source: VideoSource,
-  options: { start: number; duration: number; mode: Mode; speed: Speed; loops: number; resolution: Resolution },
+  options: { start: number; duration: number; mode: Mode; speed: Speed; loops: number; resolution: Resolution; watermark: boolean },
   onProgress: (fraction: number) => void,
 ): Promise<RenderedFile> {
   if (!source.path) throw new Error("The video isn't on disk.");
@@ -86,6 +116,7 @@ export async function createLoopNatively(
       speed: options.speed,
       loops: options.loops,
       shortSide: SHORT_SIDE[options.resolution],
+      watermark: options.watermark,
     });
   } finally {
     await listener.remove();

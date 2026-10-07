@@ -1,17 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ff2e63"/>
-      <stop offset="1" stop-color="#ffb03b"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a70a0"/>
+      <stop offset="1" stop-color="#bfcfdd"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" fill="url(#bg)"/>
-  <path
-    d="M 150 340 C 150 260 190 172 256 172 C 322 172 362 260 362 340"
-    fill="none"
-    stroke="#ffffff"
-    stroke-width="54"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <path d="M 150 350 C 150 262 196 180 256 180 C 316 180 362 262 362 350" fill="none" stroke="#ffffff" stroke-opacity="0.8" stroke-width="56" stroke-linecap="round"/>
 </svg>
