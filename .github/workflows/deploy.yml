@@ -10,6 +10,8 @@ on:
     paths:
       - public/privacy.html
       - public/support.html
+      - public/favicon-32.png
+      - public/apple-touch-icon.png
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
@@ -25,8 +27,8 @@ jobs:
       - name: Collect the legal pages
         run: |
           mkdir site
-          cp public/privacy.html public/support.html site/
-          printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./support.html"><title>Support</title><a href="./support.html">Support</a>\n' > site/index.html
+          cp public/privacy.html public/support.html public/favicon-32.png public/apple-touch-icon.png site/
+          printf '<!doctype html><meta charset="utf-8"><link rel="icon" type="image/png" href="./favicon-32.png"><meta http-equiv="refresh" content="0; url=./support.html"><title>Support</title><a href="./support.html">Support</a>\n' > site/index.html
 
       # force_orphan: the gh-pages branch keeps only these files, with none of
       # the web app builds it used to hold.
