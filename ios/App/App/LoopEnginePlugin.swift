@@ -54,6 +54,11 @@ public class LoopEnginePlugin: CAPPlugin, CAPBridgedPlugin {
             look: call.getObject("look").flatMap(Look.init)
         )
         run(call, output: "loop.mp4") { engine, output in
+            // The web app only offers these with Pro, but the engine doesn't
+            // take its word for it: it asks StoreKit itself.
+            if request.needsPro, !(await ProPlugin.hasEntitlement()) {
+                throw LoopError.failed("This needs Frangellboom Pro.")
+            }
             try await engine.renderLoop(request, to: output) { [weak self] fraction in
                 self?.notifyListeners("progress", data: ["fraction": fraction])
             }
@@ -113,6 +118,12 @@ struct LoopRequest {
     let watermark: Bool
     /// A film look (Pro), or nil.
     let look: Look?
+
+    /// Anything only Pro may export: a Pro mode, a look, no watermark, or a
+    /// quality above 2K (4K, or the source's own size).
+    var needsPro: Bool {
+        mode != .classic || look != nil || !watermark || (shortSide ?? Int.max) > 1440
+    }
 
     /// The same loop, made from a file that already holds just the segment.
     func startingAtZero(from url: URL) -> LoopRequest {

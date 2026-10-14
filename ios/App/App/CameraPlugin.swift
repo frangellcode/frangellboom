@@ -51,9 +51,15 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func record(_ call: CAPPluginCall) {
         let maxDuration = call.getDouble("maxDuration") ?? 0.75
         let hint = call.getString("hint") ?? ""
-        let pro = call.getBool("pro") ?? false
-        // "Slow motion" on the home screen opens the camera at 120 fps.
-        let startInSlowMotion = pro && call.getBool("slowMotion") == true
+        let wantsSlowMotion = call.getBool("slowMotion") == true
+        // Pro is StoreKit's say, not the web app's.
+        Task {
+            let pro = await ProPlugin.hasEntitlement()
+            self.present(call, maxDuration: maxDuration, hint: hint, pro: pro, startInSlowMotion: pro && wantsSlowMotion)
+        }
+    }
+
+    private func present(_ call: CAPPluginCall, maxDuration: Double, hint: String, pro: Bool, startInSlowMotion: Bool) {
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {
                 guard granted else {
