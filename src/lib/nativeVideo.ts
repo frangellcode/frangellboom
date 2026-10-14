@@ -91,6 +91,7 @@ export async function importFileNatively(file: File): Promise<VideoSource> {
 
 const SHORT_SIDE: Record<Resolution, number | undefined> = {
   original: undefined,
+  "2160": 2160,
   "1440": 1440,
   "1080": 1080,
   "720": 720,

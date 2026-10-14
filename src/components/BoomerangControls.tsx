@@ -3,7 +3,7 @@ import { FadeText } from "./FadeText";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
 import { openPaywall, PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "../lib/pro";
 
-function LockIcon() {
+export function LockIcon() {
   return (
     <svg className="chip__lock" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.4} aria-hidden="true">
       <rect x="2" y="5.5" width="8" height="5.5" rx="1.2" />
@@ -34,6 +34,7 @@ const SPEED_OPTIONS: { value: Speed; label: string }[] = [
 
 const RESOLUTION_OPTIONS: { value: Resolution; label: string }[] = [
   { value: "original", label: "Original" },
+  { value: "2160", label: "4K" },
   { value: "1440", label: "2K" },
   { value: "1080", label: "1080p" },
   { value: "720", label: "720p" },
