@@ -3,7 +3,7 @@ import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
 import { importFileNatively, pickVideoNatively, recordVideoNatively } from "../lib/nativeVideo";
-import { useIsPro } from "../lib/pro";
+import { openPaywall, useIsPro } from "../lib/pro";
 import type { VideoSource } from "../lib/videoSource";
 import { Headline } from "./Headline";
 
@@ -50,9 +50,18 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
       .catch((err) => console.error(err));
   }, [onSelect]);
 
-  const openCamera = useCallback(() => {
+  // The Pro shortcuts: straight to Live Photos, or the camera at 120 fps.
+  // Without Pro, the Pro sheet instead.
+  const openLivePhotos = useCallback(() => {
+    if (!isPro) return openPaywall();
+    pickVideoNatively(true)
+      .then((source) => source && onSelect(source))
+      .catch((err) => console.error(err));
+  }, [isPro, onSelect]);
+
+  const openCamera = useCallback((slowMotion = false) => {
     setCameraError(false);
-    recordVideoNatively(t.recordHint, isPro)
+    recordVideoNatively(t.recordHint, isPro, slowMotion)
       .then((source) => source && onRecord(source))
       .catch((err) => {
         if ((err as { code?: string }).code === "DENIED") setCameraError(true);
@@ -96,9 +105,21 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
         <FadeText value={t.importCta} trigger={lang} />
       </button>
       {isNativeApp && (
-        <button type="button" className="button button--sky" onClick={openCamera}>
-          <FadeText value={t.recordCta} trigger={lang} />
-        </button>
+        <>
+          <button type="button" className="button button--sky" onClick={() => openCamera()}>
+            <FadeText value={t.recordCta} trigger={lang} />
+          </button>
+          <div className="shortcuts">
+            <button type="button" className="button shortcut" onClick={openLivePhotos}>
+              <FadeText value={t.livePhotoCta} trigger={lang} />
+              {!isPro && <span className="shortcut__pro">PRO</span>}
+            </button>
+            <button type="button" className="button shortcut" onClick={() => (isPro ? openCamera(true) : openPaywall())}>
+              <FadeText value={t.slowMotionCta} trigger={lang} />
+              {!isPro && <span className="shortcut__pro">PRO</span>}
+            </button>
+          </div>
+        </>
       )}
       {cameraError && <p className="uploader__error">{t.cameraDenied}</p>}
       {!isNativeApp && (

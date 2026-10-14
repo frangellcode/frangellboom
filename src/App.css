@@ -390,6 +390,40 @@
   animation: rise 0.8s 1.4s ease-out backwards;
 }
 
+/* The Pro shortcuts under the camera button: smaller, side by side. */
+.shortcuts {
+  display: flex;
+  gap: 8px;
+  margin-top: -16px;
+}
+
+.uploader .shortcut {
+  flex: 1;
+  width: auto;
+  min-height: 42px;
+  gap: 6px;
+  padding: 0 10px;
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.shortcut__pro {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--haze);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.app--intro .shortcuts {
+  animation: rise 0.8s 1.45s ease-out backwards;
+}
+
 .uploader__error {
   color: var(--ink);
 }
@@ -1219,6 +1253,15 @@
   inset: 0;
   z-index: -1;
   background: rgba(0, 0, 0, 0.72);
+}
+
+/* Reopened from the ?, the home screen is still there underneath, so the
+   tour brings its own sky and veil instead of letting it show through.
+   (Out of the launch screen there's nothing under it but the sky.) */
+.tour:not(.tour--soft)::before {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.72)),
+    url("./assets/sky.jpg") center / cover no-repeat;
 }
 
 .tour--soft {

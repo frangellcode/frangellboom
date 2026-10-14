@@ -56,7 +56,7 @@ public class ProPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func getStatus(_ call: CAPPluginCall) {
         Task {
-            call.resolve(["isPro": await ProPlugin.hasEntitlement()])
+            call.resolve(["isPro": await ProPlugin.hasEntitlement() || TestStore.owned])
         }
     }
 
@@ -64,6 +64,10 @@ public class ProPlugin: CAPPlugin, CAPBridgedPlugin {
         Task { @MainActor in
             do {
                 guard let found = try await Product.products(for: [ProPlugin.productId]).first else {
+                    if TestStore.enabled {
+                        call.resolve(["id": ProPlugin.productId, "displayName": "Frangellboom Pro (test)", "displayPrice": TestStore.price])
+                        return
+                    }
                     call.reject("Pro is not available right now")
                     return
                 }
@@ -83,6 +87,10 @@ public class ProPlugin: CAPPlugin, CAPBridgedPlugin {
                     product = cached
                 } else if let found = try await Product.products(for: [ProPlugin.productId]).first {
                     product = found
+                } else if TestStore.enabled {
+                    TestStore.owned = true
+                    call.resolve(["status": "purchased"])
+                    return
                 } else {
                     call.reject("Pro is not available right now")
                     return
@@ -122,10 +130,36 @@ public class ProPlugin: CAPPlugin, CAPBridgedPlugin {
             do {
                 try await AppStore.sync()
             } catch {
+                if TestStore.owned {
+                    call.resolve(["isPro": true])
+                    return
+                }
                 call.reject(error.localizedDescription)
                 return
             }
-            call.resolve(["isPro": await ProPlugin.hasEntitlement()])
+            call.resolve(["isPro": await ProPlugin.hasEntitlement() || TestStore.owned])
         }
+    }
+}
+
+/// Debug builds only. A build put on the phone straight from the Mac (not
+/// launched from Xcode) can't use Frangellboom.storekit, and the real App
+/// Store has no Pro to sell until App Review approves it — so there Pro
+/// was simply "not available". When the store has no product, a debug build
+/// sells a stand-in instead, which unlocks Pro on this phone only (deleting
+/// the app takes it away again). Release builds — the App Store's — never
+/// have it: `enabled` is false and nothing is ever stored.
+enum TestStore {
+    #if DEBUG
+    static let enabled = true
+    #else
+    static let enabled = false
+    #endif
+    static let price = "$4.99"
+    private static let key = "testStorePro"
+
+    static var owned: Bool {
+        get { enabled && UserDefaults.standard.bool(forKey: key) }
+        set { if enabled { UserDefaults.standard.set(newValue, forKey: key) } }
     }
 }

@@ -16,7 +16,7 @@ interface PickedVideo {
 }
 
 interface VideoPickerPlugin {
-  pick(): Promise<{ video?: PickedVideo }>;
+  pick(options?: { livePhotosOnly?: boolean }): Promise<{ video?: PickedVideo }>;
 }
 
 export interface NativeLook {
@@ -60,14 +60,14 @@ const LoopEngine = registerPlugin<LoopEnginePlugin>("LoopEngine");
 /** Opens the iOS video picker. Nothing is read into memory here — the video
  *  stays on disk, streamed by URL to the <video> elements and read directly
  *  by the native engine. Cancelling resolves to null. */
-export async function pickVideoNatively(): Promise<VideoSource | null> {
-  const { video } = await VideoPicker.pick();
+export async function pickVideoNatively(livePhotosOnly = false): Promise<VideoSource | null> {
+  const { video } = await VideoPicker.pick({ livePhotosOnly });
   if (!video) return null;
   return { name: video.name, url: video.webPath, data: video.webPath, path: video.path, livePhoto: video.livePhoto };
 }
 
 interface CameraPlugin {
-  record(options: { maxDuration: number; hint: string; pro: boolean }): Promise<{
+  record(options: { maxDuration: number; hint: string; pro: boolean; slowMotion?: boolean }): Promise<{
     video?: { webPath: string; path: string; name: string; slowMotion?: boolean };
     /** A Pro extra was tapped without Pro: the camera closed for the Pro sheet. */
     paywall?: boolean;
@@ -87,8 +87,8 @@ export const MAX_RECORDING_SECONDS = 0.75;
 /** Opens the app's own camera. Resolves to null if the person closes it
  *  without recording; rejects with code "DENIED" when camera access is off.
  *  After a recording the camera stays up until closeCameraNatively(). */
-export async function recordVideoNatively(hint: string, pro: boolean): Promise<VideoSource | null> {
-  const { video, paywall } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint, pro });
+export async function recordVideoNatively(hint: string, pro: boolean, slowMotion = false): Promise<VideoSource | null> {
+  const { video, paywall } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint, pro, slowMotion });
   if (paywall) openPaywall();
   if (!video) return null;
   return { name: video.name, url: video.webPath, data: video.webPath, path: video.path, slowMotion: video.slowMotion };

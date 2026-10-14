@@ -52,6 +52,8 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
         let maxDuration = call.getDouble("maxDuration") ?? 0.75
         let hint = call.getString("hint") ?? ""
         let pro = call.getBool("pro") ?? false
+        // "Slow motion" on the home screen opens the camera at 120 fps.
+        let startInSlowMotion = pro && call.getBool("slowMotion") == true
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {
                 guard granted else {
@@ -60,7 +62,7 @@ public class CameraPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 try? FileManager.default.createDirectory(at: self.recordedDirectory, withIntermediateDirectories: true)
                 let output = self.recordedDirectory.appendingPathComponent("\(UUID().uuidString).mov")
-                let camera = CameraViewController(output: output, maxDuration: maxDuration, hint: hint, pro: pro) { [weak self] result in
+                let camera = CameraViewController(output: output, maxDuration: maxDuration, hint: hint, pro: pro, slowMotion: startInSlowMotion) { [weak self] result in
                     guard let self else { return }
                     switch result {
                     case .paywall:
@@ -136,11 +138,12 @@ final class CameraViewController: UIViewController, AVCaptureFileOutputRecording
     private var take = 0
     private var finished = false
 
-    init(output: URL, maxDuration: Double, hint: String, pro: Bool, completion: @escaping (CameraResult) -> Void) {
+    init(output: URL, maxDuration: Double, hint: String, pro: Bool, slowMotion: Bool = false, completion: @escaping (CameraResult) -> Void) {
         self.output = output
         self.maxDuration = maxDuration
         self.hint = hint
         self.pro = pro
+        self.slowMotion = slowMotion
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
     }

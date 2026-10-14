@@ -37,7 +37,8 @@ public class VideoPickerPlugin: CAPPlugin, CAPBridgedPlugin, PHPickerViewControl
         DispatchQueue.main.async {
             var configuration = PHPickerConfiguration()
             configuration.selectionLimit = 1
-            configuration.filter = .any(of: [.videos, .livePhotos])
+            // "Live Photo → loop" on the home screen shows Live Photos alone.
+            configuration.filter = call.getBool("livePhotosOnly") == true ? .livePhotos : .any(of: [.videos, .livePhotos])
             configuration.preferredAssetRepresentationMode = .current
             let picker = PHPickerViewController(configuration: configuration)
             picker.delegate = self
