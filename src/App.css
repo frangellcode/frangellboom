@@ -428,8 +428,7 @@
   color: var(--ink);
 }
 
-.uploader__hint,
-.uploader__meta {
+.uploader__hint {
   color: rgba(27, 27, 27, 0.6);
   font-size: 13px;
   text-align: center;
@@ -1246,7 +1245,6 @@
   animation: rise 0.8s 1.3s ease-out backwards;
 }
 
-.app--intro .uploader__meta,
 .app--intro .uploader__hint {
   animation: rise 0.8s 1.45s ease-out backwards;
 }
@@ -1269,7 +1267,8 @@
   .app--intro .poster__letter,
   .app--intro .poster__line,
   .app--intro .uploader > .button,
-  .app--intro .uploader__meta,
+  .app--intro .shortcuts,
+  .app--intro .uploader__hint,
   .app--intro .support {
     animation-duration: 0.01s;
     animation-delay: 0s;

@@ -128,9 +128,6 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
         </p>
       )}
       {error && <p className="uploader__error">{error}</p>}
-      <p className="uploader__meta">
-        <FadeText value={t.badgeOnDevice} trigger={lang} /> · <FadeText value={t.badgeQuality} trigger={lang} />
-      </p>
     </div>
   );
 }
