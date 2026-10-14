@@ -20,6 +20,7 @@ import { isNativeApp } from "./lib/native";
 import { closeCameraNatively, createLoopNatively, createPreviewNatively, recordVideoNatively } from "./lib/nativeVideo";
 import { openPaywall, PRO_MODES, PRO_RESOLUTIONS, useIsPro, usePaywallOpen } from "./lib/pro";
 import { ProSheet } from "./components/ProSheet";
+import { buildLut, lookOverlays, lutBase64, LUT_SIZE, type LookId } from "./lib/looks";
 import { WelcomeTour } from "./components/WelcomeTour";
 import { hasSeenTour } from "./lib/tour";
 import "./App.css";
@@ -75,6 +76,8 @@ function App() {
   const [speed, setSpeed] = useState<Speed>(1);
   const [mode, setMode] = useState<Mode>("classic");
   const [resolution, setResolution] = useState<Resolution>("original");
+  const [look, setLook] = useState<LookId | null>(null);
+  const [lookAmount, setLookAmount] = useState(1);
   const isPro = useIsPro();
 
   // Without Pro, a Pro choice falls back to the best free one: Classic, and
@@ -83,7 +86,8 @@ function App() {
     if (isPro) return;
     if (PRO_MODES.includes(mode)) setMode("classic");
     if (PRO_RESOLUTIONS.includes(resolution)) setResolution("1440");
-  }, [isPro, mode, resolution]);
+    if (look) setLook(null);
+  }, [isPro, mode, resolution, look]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<LoopResult | null>(null);
@@ -281,7 +285,10 @@ function App() {
     try {
       const options = { start, duration: clampedSegmentDuration, loops, resolution, speed: effectiveSpeed, mode };
       if (isNativeApp) {
-        const { webPath, uri } = await createLoopNatively(source, { ...options, watermark: !isPro }, setProgress);
+        const nativeLook = look
+          ? { lut: lutBase64(buildLut(look, lookAmount)), size: LUT_SIZE, ...lookOverlays(look, lookAmount) }
+          : undefined;
+        const { webPath, uri } = await createLoopNatively(source, { ...options, watermark: !isPro, look: nativeLook }, setProgress);
         setResult({ url: webPath, uri });
       } else {
         const blob = await withFFmpeg((ffmpeg) => createBoomerang(ffmpeg, source, { ...options, onProgress: setProgress }));
@@ -303,7 +310,7 @@ function App() {
       if (!isNativeApp) resetFFmpeg().catch(() => {});
       releaseWakeLock();
     }
-  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, isPro]);
+  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, isPro, look, lookAmount]);
 
   const handleGoToAdjust = useCallback(async () => {
     if (!source) return;
@@ -428,6 +435,8 @@ function App() {
                 duration={clampedSegmentDuration}
                 speed={effectiveSpeed}
                 mode={mode}
+                look={look}
+                lookAmount={lookAmount}
                 fadeIn={!enteredFromCamera}
                 onShown={() => previewShown.current?.()}
               />
@@ -445,6 +454,10 @@ function App() {
               onModeChange={setMode}
               resolution={resolution}
               onResolutionChange={setResolution}
+              look={look}
+              onLookChange={setLook}
+              lookAmount={lookAmount}
+              onLookAmountChange={setLookAmount}
             />
 
             {error && <p className="error">{error}</p>}

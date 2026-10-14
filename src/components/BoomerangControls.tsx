@@ -4,6 +4,7 @@ import type { Mode, Resolution, Speed } from "../lib/boomerang";
 import { openPaywall, PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "../lib/pro";
 import { NATIVE_ONLY_MODES } from "../lib/boomerangMath";
 import { isNativeApp } from "../lib/native";
+import { LOOK_IDS, type LookId } from "../lib/looks";
 
 export function LockIcon() {
   return (
@@ -22,6 +23,11 @@ interface BoomerangControlsProps {
   onModeChange: (value: Mode) => void;
   resolution: Resolution;
   onResolutionChange: (value: Resolution) => void;
+  /** Film look (iOS app, Pro); null for none. */
+  look: LookId | null;
+  onLookChange: (value: LookId | null) => void;
+  lookAmount: number;
+  onLookAmountChange: (value: number) => void;
 }
 
 const MODES: Mode[] = (["classic", "ease", "freeze", "pulse", "zoom", "ramp", "bounce", "echo", "mirror"] as Mode[]).filter(
@@ -52,6 +58,10 @@ export function BoomerangControls({
   onModeChange,
   resolution,
   onResolutionChange,
+  look,
+  onLookChange,
+  lookAmount,
+  onLookAmountChange,
 }: BoomerangControlsProps) {
   const t = useT();
   const lang = useLanguage();
@@ -103,6 +113,49 @@ export function BoomerangControls({
           )}
         </div>
       </div>
+
+      {/* Film looks: the iOS app only, like the modes its engine alone makes. */}
+      {isNativeApp && (
+        <div className="controls__row">
+          <span className="controls__label">
+            <FadeText value={t.look} trigger={lang} />
+          </span>
+          <div className="chips chips--scroll">
+            <button type="button" className={`chip${look === null ? " chip--active" : ""}`} onClick={() => onLookChange(null)}>
+              <FadeText value={t.lookNone} trigger={lang} />
+            </button>
+            {LOOK_IDS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={`chip${look === id ? " chip--active" : ""}${isPro ? "" : " chip--locked"}`}
+                onClick={() => (isPro ? onLookChange(id) : openPaywall())}
+              >
+                {t.looks[id]}
+                {!isPro && <LockIcon />}
+              </button>
+            ))}
+          </div>
+          <div className={`controls__collapse controls__collapse--inline${look ? " controls__collapse--open" : ""}`}>
+            <div className="controls__collapse-inner">
+              <label className="controls__amount">
+                <span>
+                  <FadeText value={t.lookAmount} trigger={lang} />
+                </span>
+                <input
+                  className="range"
+                  type="range"
+                  min={0.1}
+                  max={1}
+                  step={0.05}
+                  value={lookAmount}
+                  onChange={(e) => onLookAmountChange(Number(e.target.value))}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {row(
         t.quality,

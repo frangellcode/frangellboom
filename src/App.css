@@ -766,6 +766,48 @@
   color: var(--whiteout);
 }
 
+/* A long row (the film looks) scrolls sideways instead of wrapping, running
+   out to the card's edges. */
+.chips--scroll {
+  flex-wrap: nowrap;
+  margin: 0 -20px;
+  padding: 0 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips--scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.chips--scroll .chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Inside a row (gap 8px) rather than between rows (gap 16px). */
+.controls__collapse--inline {
+  margin-bottom: 0;
+  margin-top: -8px;
+  transition: grid-template-rows 0.25s ease, margin-top 0.25s ease;
+}
+
+.controls__collapse--inline.controls__collapse--open {
+  margin-top: 0;
+}
+
+.controls__amount {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  font-size: 13px;
+}
+
+.controls__amount .range {
+  flex: 1;
+}
+
 /* ---------- processing ---------- */
 
 .overlay {

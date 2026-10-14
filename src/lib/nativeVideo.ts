@@ -18,6 +18,14 @@ interface VideoPickerPlugin {
   pick(): Promise<{ video?: PickedVideo }>;
 }
 
+export interface NativeLook {
+  /** buildLut's table, base64 (see lutBase64). */
+  lut: string;
+  size: number;
+  grain: number;
+  vignette: number;
+}
+
 interface RenderedFile {
   /** file:// URI, for the share sheet. */
   uri: string;
@@ -36,6 +44,8 @@ interface LoopEnginePlugin {
     shortSide?: number;
     /** The free version's mark in the corner (see Watermark in LoopEnginePlugin.swift). */
     watermark?: boolean;
+    /** A film look: its colour table from looks.ts, and its grain and vignette. */
+    look?: NativeLook;
   }): Promise<RenderedFile>;
   preview(options: { path: string; start: number; duration: number }): Promise<RenderedFile>;
   addListener(event: "progress", listener: (data: { fraction: number }) => void): Promise<{ remove(): Promise<void> }>;
@@ -105,7 +115,16 @@ const SHORT_SIDE: Record<Resolution, number | undefined> = {
  *  webview's memory limits. */
 export async function createLoopNatively(
   source: VideoSource,
-  options: { start: number; duration: number; mode: Mode; speed: Speed; loops: number; resolution: Resolution; watermark: boolean },
+  options: {
+    start: number;
+    duration: number;
+    mode: Mode;
+    speed: Speed;
+    loops: number;
+    resolution: Resolution;
+    watermark: boolean;
+    look?: NativeLook;
+  },
   onProgress: (fraction: number) => void,
 ): Promise<RenderedFile> {
   if (!source.path) throw new Error("The video isn't on disk.");
@@ -120,6 +139,7 @@ export async function createLoopNatively(
       loops: options.loops,
       shortSide: SHORT_SIDE[options.resolution],
       watermark: options.watermark,
+      look: options.look,
     });
   } finally {
     await listener.remove();
