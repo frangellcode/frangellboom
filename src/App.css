@@ -1165,6 +1165,15 @@
   opacity: 0;
 }
 
+/* Nothing moves while it waits — above all the arc's float, which would
+   otherwise sway on unseen through the whole welcome tour. The intro reuses
+   that animation by name, so the browser carries on the old one rather
+   than starting it afresh: glass-in then let go of the arc mid-sway and it
+   jumped. */
+.app--waiting .glass {
+  animation: none;
+}
+
 /* Then the home screen assembles itself: the sky eases in towards the
    camera, the glass arc floats down out of the haze, LOOP rises letter by
    letter, and the line, button and footer follow. */
