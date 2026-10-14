@@ -112,8 +112,6 @@ const SHORT_SIDE: Record<Resolution, number | undefined> = {
   "2160": 2160,
   "1440": 1440,
   "1080": 1080,
-  "720": 720,
-  "480": 480,
 };
 
 /** Builds the loop with AVFoundation on the phone's own video hardware: full

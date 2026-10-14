@@ -119,7 +119,7 @@ FULL QUALITY
 • Keeps your video's resolution, frame rate and HDR — up to 4K at 60 fps
 • Built on your iPhone's own video hardware: fast, even for 4K
 • Slow motion stays smooth: the missing in-between frames are created on device
-• Or pick a size: 4K, 2K, 1080p, 720p or 480p
+• Or pick a size: 4K, 2K or 1080p
 
 PRIVATE BY DESIGN
 Every video is processed on your iPhone. No account, no uploads, no tracking. Works with no internet connection.
@@ -147,7 +147,7 @@ CALIDAD MÁXIMA
 • Mantiene la resolución, los fps y el HDR de tu video — hasta 4K a 60 fps
 • Usa el hardware de video de tu iPhone: rápido, incluso en 4K
 • Cámara lenta fluida: los cuadros intermedios se crean en el dispositivo
-• O elige un tamaño: 4K, 2K, 1080p, 720p o 480p
+• O elige un tamaño: 4K, 2K o 1080p
 
 PRIVADA POR DISEÑO
 Cada video se procesa en tu iPhone. Sin cuenta, sin subidas, sin rastreo. Funciona sin internet.
