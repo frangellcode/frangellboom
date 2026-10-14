@@ -5,7 +5,7 @@ Esta guía va desde "tengo la cuenta de Apple Developer" hasta "la app está en 
 - **Nombre:** Frangellboom
 - **Bundle ID:** `com.frangellcode.frangellboom`
 - **Team:** Frangell Vasquez (9S78N8546T)
-- **Frangellboom Pro (IAP no consumible):** `com.frangellcode.frangellboom.pro` → $2.99
+- **Frangellboom Pro (IAP no consumible):** `com.frangellcode.frangellboom.pro` → $4.99
   - Desbloquea los modos Ease, Freeze, Pulse y Zoom, las calidades 4K y "Original" (la resolución del video tal cual, incluso más allá de 4K), y exportar sin marca de agua. 2K y menos son gratis. Lo demás es gratis.
 - **Política de privacidad:** https://frangellcode.github.io/frangellboom/privacy.html
 - **Soporte:** https://frangellcode.github.io/frangellboom/support.html
@@ -71,9 +71,9 @@ Antes: **Business → Agreements** → acepta el **Paid Apps Agreement** (con ba
 
 | Type | Reference Name | Product ID | Precio |
 |---|---|---|---|
-| Non-Consumable | Frangellboom Pro | `com.frangellcode.frangellboom.pro` | $2.99 |
+| Non-Consumable | Frangellboom Pro | `com.frangellcode.frangellboom.pro` | $4.99 |
 
-- **Availability:** todos los países. **Price Schedule:** $2.99.
+- **Availability:** todos los países. **Price Schedule:** $4.99.
 - **Localization:** EN *Frangellboom Pro* / "Every mode and film look, the Pro camera, Live Photos, 4K, no watermark. Yours forever." · ES *Frangellboom Pro* / "Todos los modos y estilos, cámara Pro, Live Photos, 4K, sin marca de agua. Para siempre."
 - **Review Screenshot:** una captura de la ventana "Frangellboom Pro" con el precio.
 - **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, the Ramp, Bounce, Echo and Mirror modes, 11 film looks, the Pro camera (120 fps slow motion, timer, ultra wide and telephoto lenses), turning Live Photos into loops, the 4K and Original export qualities, and exporting without the watermark. Restore purchases is in the same sheet.`
