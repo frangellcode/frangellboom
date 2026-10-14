@@ -10,6 +10,8 @@ interface PickedVideo {
   name: string;
   mimeType: string;
   size: number;
+  /** The video inside a Live Photo (already made 9:16 if it was upright). */
+  livePhoto?: boolean;
 }
 
 interface VideoPickerPlugin {
@@ -50,7 +52,7 @@ const LoopEngine = registerPlugin<LoopEnginePlugin>("LoopEngine");
 export async function pickVideoNatively(): Promise<VideoSource | null> {
   const { video } = await VideoPicker.pick();
   if (!video) return null;
-  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
+  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path, livePhoto: video.livePhoto };
 }
 
 interface CameraPlugin {

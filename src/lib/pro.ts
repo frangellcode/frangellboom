@@ -31,6 +31,7 @@ export const Pro = registerPlugin<ProPlugin>("Pro");
 /** What Pro unlocks. Everything else is free. */
 export const PRO_MODES: readonly Mode[] = ["ease", "freeze", "pulse", "zoom"];
 export const PRO_RESOLUTIONS: readonly Resolution[] = ["original", "2160"];
+// Live Photos (see VideoPickerPlugin.swift) are Pro too.
 
 // The web version has no App Store to buy from, so it's all unlocked there.
 // The app starts locked and asks StoreKit on every launch — nothing is

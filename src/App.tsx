@@ -18,7 +18,7 @@ import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
 import { probeVideo, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
 import { closeCameraNatively, createLoopNatively, createPreviewNatively, recordVideoNatively } from "./lib/nativeVideo";
-import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "./lib/pro";
+import { openPaywall, PRO_MODES, PRO_RESOLUTIONS, useIsPro, usePaywallOpen } from "./lib/pro";
 import { ProSheet } from "./components/ProSheet";
 import { WelcomeTour } from "./components/WelcomeTour";
 import { hasSeenTour } from "./lib/tour";
@@ -150,6 +150,33 @@ function App() {
     },
     [adoptSource],
   );
+
+  // A Live Photo is Pro. Without it, picking one opens the Pro sheet; if
+  // the purchase goes through there, that same Live Photo carries on to
+  // trimming, and if the sheet closes without it, it's let go.
+  const [pendingLivePhoto, setPendingLivePhoto] = useState<VideoSource | null>(null);
+  const paywallOpen = usePaywallOpen();
+  const handlePick = useCallback(
+    (selected: VideoSource) => {
+      if (selected.livePhoto && !isPro) {
+        setPendingLivePhoto(selected);
+        openPaywall();
+        return;
+      }
+      handleSelect(selected);
+    },
+    [isPro, handleSelect],
+  );
+  useEffect(() => {
+    if (!pendingLivePhoto) return;
+    if (isPro) {
+      setPendingLivePhoto(null);
+      handleSelect(pendingLivePhoto);
+    } else if (!paywallOpen) {
+      // Closed without buying.
+      setPendingLivePhoto(null);
+    }
+  }, [pendingLivePhoto, isPro, paywallOpen, handleSelect]);
 
   // A recording is already a loop's length, so it skips trimming: straight
   // to shaping the loop. The camera stays up (dimmed, spinner going) while
@@ -330,7 +357,7 @@ function App() {
       <main className="app__main">
         {step === "upload" && (
           <div className="screen hero" key="upload">
-            <VideoUploader onSelect={handleSelect} onRecord={handleRecord} error={error} />
+            <VideoUploader onSelect={handlePick} onRecord={handleRecord} error={error} />
             <SupportFooter />
           </div>
         )}
