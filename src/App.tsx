@@ -20,6 +20,8 @@ import { isNativeApp } from "./lib/native";
 import { closeCameraNatively, createLoopNatively, createPreviewNatively, recordVideoNatively } from "./lib/nativeVideo";
 import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "./lib/pro";
 import { ProSheet } from "./components/ProSheet";
+import { WelcomeTour } from "./components/WelcomeTour";
+import { hasSeenTour } from "./lib/tour";
 import "./App.css";
 
 type Step = "upload" | "trim" | "adjust" | "processing" | "result";
@@ -43,10 +45,19 @@ function App() {
   // Cold start: the sky waits (matching the launch screen) until everything
   // is loaded, then the home screen assembles itself; see App.css.
   const [intro, setIntro] = useState<"waiting" | "playing" | "done">(() => (introPending() ? "waiting" : "done"));
+  // The welcome tour. On the very first launch it opens straight out of the
+  // launch screen ("first"): the sky stays as it is, the tour comes up over
+  // it, and the home screen assembles itself only once the tour is closed.
+  // The "?" on the home screen reopens it ("open").
+  const [tour, setTour] = useState<"closed" | "first" | "open">("closed");
   useEffect(() => {
     if (intro !== "waiting") return;
-    prepareIntro().then(() => setIntro("playing"));
+    prepareIntro().then(() => (hasSeenTour() ? setIntro("playing") : setTour("first")));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, on the cold start
+  }, []);
+  const closeTour = useCallback(() => {
+    setTour("closed");
+    setIntro((current) => (current === "waiting" ? "playing" : current));
   }, []);
   // The intro's classes stay on for as long as the home screen it built is
   // up. Taking them off any earlier swaps each element back to its everyday
@@ -67,11 +78,11 @@ function App() {
   const isPro = useIsPro();
 
   // Without Pro, a Pro choice falls back to the best free one: Classic, and
-  // 1080p. (Original is the default for someone with Pro.)
+  // 2K. (Original is the default for someone with Pro.)
   useEffect(() => {
     if (isPro) return;
     if (PRO_MODES.includes(mode)) setMode("classic");
-    if (PRO_RESOLUTIONS.includes(resolution)) setResolution("1080");
+    if (PRO_RESOLUTIONS.includes(resolution)) setResolution("1440");
   }, [isPro, mode, resolution]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -304,9 +315,16 @@ function App() {
     >
       <header className="bar">
         <h1 className="bar__wordmark">Frangellboom</h1>
-        <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
-          <FadeText value={t.langToggle} trigger={lang} />
-        </button>
+        <div className="bar__actions">
+          {step === "upload" && (
+            <button type="button" className="bar__lang bar__help" onClick={() => setTour("open")} aria-label={t.tour.help}>
+              ?
+            </button>
+          )}
+          <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
+            <FadeText value={t.langToggle} trigger={lang} />
+          </button>
+        </div>
       </header>
 
       <main className="app__main">
@@ -433,6 +451,7 @@ function App() {
           </div>
         )}
       </main>
+      {tour !== "closed" && <WelcomeTour soft={tour === "first"} onClose={closeTour} />}
       {isNativeApp && <ProSheet />}
     </div>
   );

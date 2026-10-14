@@ -114,10 +114,10 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
 
 /** The app's arc as a piece of glass floating in the sky — the home screen's
  *  counterpart to the sculptural glass forms in the Air style reference. */
-function GlassArc() {
+export function GlassArc({ className = "glass" }: { className?: string }) {
   const arc = "M40,150 C40,86 76,30 120,30 C164,30 200,86 200,150";
   return (
-    <svg className="glass" viewBox="0 0 240 180" aria-hidden="true">
+    <svg className={className} viewBox="0 0 240 180" aria-hidden="true">
       <defs>
         <filter id="glass-soft" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="1.4" />
