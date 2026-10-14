@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { isNativeApp } from "./native";
 
-export type TourSlideId = "welcome" | "capture" | "moment" | "shape" | "share" | "pro";
+export type TourSlideId = "welcome" | "capture" | "moment" | "shape" | "looks" | "share" | "pro";
 export interface TourSlide {
   id: TourSlideId;
   title: string;
@@ -111,7 +111,7 @@ const es = {
         id: "capture",
         title: isNativeApp ? "Graba o {elige}" : "Elige tu {video}",
         body: isNativeApp
-          ? "Graba un momento con la cámara de la app (mantén presionado o solo toca) o elige cualquier video de tu fototeca."
+          ? "Graba un momento con la cámara de la app (mantén presionado o solo toca) o elige un video de tu fototeca. Con Pro, también tus Live Photos."
           : "Elige un video o arrástralo aquí. Se procesa en tu navegador y nunca se sube a ningún lado.",
       },
       {
@@ -128,6 +128,15 @@ const es = {
           ? "Clásico, a velocidad normal o en cámara lenta, y con Pro ocho modos más, de Suave a Espejo. Toca uno para verlo en vivo."
           : "Cinco modos, cada uno con su propio movimiento. En Clásico también hay cámara lenta. Lo ves en vivo antes de crearlo.",
       },
+      ...(isNativeApp
+        ? [
+            {
+              id: "looks",
+              title: "Dale un {estilo}",
+              body: "Con Pro, 11 estilos de cine con su grano y su viñeta, de Retrato 400 a Noir, a la intensidad que quieras.",
+            },
+          ]
+        : []),
       {
         id: "share",
         title: "Guárdalo y {compártelo}",
@@ -247,7 +256,7 @@ const en: typeof es = {
         id: "capture",
         title: isNativeApp ? "Record or {choose}" : "Choose your {video}",
         body: isNativeApp
-          ? "Record a moment with the app's camera (hold, or just tap) or pick any video from your library."
+          ? "Record a moment with the app's camera (hold, or just tap) or pick a video from your library. With Pro, your Live Photos too."
           : "Pick a video or drop it in. It's processed in your browser and never uploaded anywhere.",
       },
       {
@@ -264,6 +273,15 @@ const en: typeof es = {
           ? "Classic, at normal speed or in slow motion, and with Pro eight more modes, from Ease to Mirror. Tap one to see it live."
           : "Five modes, each with its own motion. Classic also does slow motion. You see it live before you make it.",
       },
+      ...(isNativeApp
+        ? [
+            {
+              id: "looks",
+              title: "Give it a {look}",
+              body: "With Pro, 11 film looks with their own grain and vignette, from Portrait 400 to Noir, as strong as you like.",
+            },
+          ]
+        : []),
       {
         id: "share",
         title: "Save it, {share} it",

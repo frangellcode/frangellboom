@@ -1023,9 +1023,17 @@
   font-weight: 500;
 }
 
+/* A wrapped line lines up with the text, not under the tick. */
+.prosheet__features li,
+.tour-procard__features li {
+  position: relative;
+  padding-left: 22px;
+}
+
 .prosheet__features li::before {
   content: "✓";
-  margin-right: 8px;
+  position: absolute;
+  left: 0;
 }
 
 .prosheet__message {
@@ -1777,6 +1785,15 @@ button.tour-chip {
   flex-shrink: 0;
 }
 
+/* The look changes in a soft crossfade, its name with it. */
+.tour-look {
+  transition: filter 0.6s ease;
+}
+
+.tour-look__name {
+  animation: fade-in 0.4s ease-out;
+}
+
 .tour-art--share {
   gap: 14px;
 }
@@ -1820,7 +1837,8 @@ button.tour-chip {
 
 .tour-procard__features li::before {
   content: "✓";
-  margin-right: 8px;
+  position: absolute;
+  left: 0;
 }
 
 /* The "?" next to EN/ES on the home screen, to see the tour again. */

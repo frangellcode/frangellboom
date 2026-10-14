@@ -7,6 +7,7 @@ import { markTourSeen } from "../lib/tour";
 import type { Mode, Resolution } from "../lib/boomerang";
 import { NATIVE_ONLY_MODES } from "../lib/boomerangMath";
 import { LockIcon } from "./BoomerangControls";
+import type { LookId } from "../lib/looks";
 import { Headline } from "./Headline";
 import { GlassArc } from "./VideoUploader";
 
@@ -166,6 +167,35 @@ function ShareArt() {
   );
 }
 
+/** The live clip through one film look after another (CSS stand-ins for
+ *  the real looks, which are colour tables), its name under it. */
+const TOUR_LOOKS: { id: LookId; filter: string }[] = [
+  { id: "retrato", filter: "sepia(0.25) saturate(0.9) contrast(0.92) brightness(1.04)" },
+  { id: "noir", filter: "grayscale(1) contrast(1.5) brightness(0.95)" },
+  { id: "atardecer", filter: "sepia(0.45) saturate(1.5) hue-rotate(-12deg)" },
+  { id: "cruzado", filter: "saturate(1.4) contrast(1.25) hue-rotate(-18deg)" },
+  { id: "menta", filter: "hue-rotate(18deg) saturate(0.85) brightness(1.08) contrast(0.9)" },
+];
+
+function LooksArt() {
+  const t = useT();
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setActive((i) => (i + 1) % TOUR_LOOKS.length), 1800);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <div className="tour-art tour-art--looks">
+      <div className="tour-look" style={{ filter: TOUR_LOOKS[active].filter }}>
+        <SkyClip className="tour-clip--tall" mode="classic" />
+      </div>
+      <span key={active} className="tour-chip tour-chip--on tour-look__name">
+        {t.looks[TOUR_LOOKS[active].id]}
+      </span>
+    </div>
+  );
+}
+
 /** A small Pro card: what one purchase unlocks. */
 function ProArt() {
   const t = useT();
@@ -190,6 +220,7 @@ const ART: Record<TourSlideId, () => ReactNode> = {
   capture: CaptureArt,
   moment: MomentArt,
   shape: ShapeArt,
+  looks: LooksArt,
   share: ShareArt,
   pro: ProArt,
 };

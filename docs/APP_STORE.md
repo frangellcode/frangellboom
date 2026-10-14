@@ -74,9 +74,9 @@ Antes: **Business → Agreements** → acepta el **Paid Apps Agreement** (con ba
 | Non-Consumable | Frangellboom Pro | `com.frangellcode.frangellboom.pro` | $2.99 |
 
 - **Availability:** todos los países. **Price Schedule:** $2.99.
-- **Localization:** EN *Frangellboom Pro* / "Every mode, 4K and original quality, no watermark. One purchase, yours forever." · ES *Frangellboom Pro* / "Todos los modos, calidad 4K y original, sin marca de agua. Un solo pago, para siempre."
+- **Localization:** EN *Frangellboom Pro* / "Every mode and film look, the Pro camera, Live Photos, 4K, no watermark. Yours forever." · ES *Frangellboom Pro* / "Todos los modos y estilos, cámara Pro, Live Photos, 4K, sin marca de agua. Para siempre."
 - **Review Screenshot:** una captura de la ventana "Frangellboom Pro" con el precio.
-- **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, the 4K and Original export qualities, and exporting without the watermark. Restore purchases is in the same sheet.`
+- **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, the Ramp, Bounce, Echo and Mirror modes, 11 film looks, the Pro camera (120 fps slow motion, timer, ultra wide and telephoto lenses), turning Live Photos into loops, the 4K and Original export qualities, and exporting without the watermark. Restore purchases is in the same sheet.`
 
 ## 5. Privacidad
 
