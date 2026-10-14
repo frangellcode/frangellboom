@@ -1,4 +1,8 @@
-export type Mode = "classic" | "ease" | "freeze" | "pulse" | "zoom";
+export type Mode = "classic" | "ease" | "freeze" | "pulse" | "zoom" | "ramp" | "bounce" | "echo" | "mirror";
+
+/** Modes only the iOS app's own engine makes (LoopEnginePlugin.swift); the
+ *  web version's ffmpeg export doesn't have them, so the web never offers them. */
+export const NATIVE_ONLY_MODES: readonly Mode[] = ["ramp", "bounce", "echo", "mirror"];
 
 // A boomerang "mode" is a speed curve applied across the trimmed segment.
 // "classic" is flat (factor 1 everywhere); "ease" slows down at the edges
@@ -21,10 +25,29 @@ export function zoneFactorAt(mode: Mode, fraction: number): number {
   return (zone ?? EASE_ZONES[EASE_ZONES.length - 1]).factor;
 }
 
+// "ramp": every leg starts slow and picks up speed. Unlike EASE_ZONES these
+// are by progress through the LEG, not position in the segment, so the
+// way back ramps up too instead of mirroring the way there.
+export const RAMP_ZONES = [
+  { from: 0, to: 0.35, factor: 0.5 },
+  { from: 0.35, to: 0.7, factor: 1.1 },
+  { from: 0.7, to: 1, factor: 2.2 },
+] as const;
+
+/** Speed multiplier `progress` (0..1) of the way through a ramp leg. */
+export function rampFactorAt(progress: number): number {
+  const clamped = Math.min(Math.max(progress, 0), 1);
+  return (RAMP_ZONES.find((z) => clamped >= z.from && clamped <= z.to) ?? RAMP_ZONES[RAMP_ZONES.length - 1]).factor;
+}
+
+// "bounce": there and back like a ball coming to rest — each return a little
+// shorter, then all the way back. The positions it turns at, in order.
+export const BOUNCE_STOPS = [0, 1, 0.4, 1, 0.75, 1, 0] as const;
+
 /** How long the forward pass through the segment takes to play back, in seconds. */
 export function forwardDuration(mode: Mode, speed: number, segmentDuration: number): number {
-  if (mode !== "ease") return segmentDuration / speed;
-  return EASE_ZONES.reduce((total, zone) => {
+  if (mode !== "ease" && mode !== "ramp") return segmentDuration / speed;
+  return (mode === "ramp" ? RAMP_ZONES : EASE_ZONES).reduce((total: number, zone) => {
     const zoneInputDuration = (zone.to - zone.from) * segmentDuration;
     return total + zoneInputDuration / (speed * zone.factor);
   }, 0);
@@ -48,17 +71,24 @@ export const PULSE_PULLBACK = 0.55;
  * expected to resolve speed before reaching here.
  */
 export function perLoopDuration(mode: Mode, speed: number, segmentDuration: number): number {
-  if (mode === "classic" || mode === "ease" || mode === "zoom") {
-    const timingMode = mode === "ease" ? "ease" : "classic";
-    return forwardDuration(timingMode, speed, segmentDuration) * 2;
-  }
-  if (mode === "freeze") {
-    return forwardDuration("classic", speed, segmentDuration) * 2 + FREEZE_HOLD_SECONDS * 2;
-  }
-  // pulse: forward(0->1) + pull back(1->PULLBACK) + forward again(PULLBACK->1) + full reverse(1->0)
   const full = forwardDuration("classic", speed, segmentDuration);
-  const pullbackSpan = (1 - PULSE_PULLBACK) * full;
-  return full + pullbackSpan + pullbackSpan + full;
+  switch (mode) {
+    case "ease":
+    case "ramp":
+      return forwardDuration(mode, speed, segmentDuration) * 2;
+    case "freeze":
+      return full * 2 + FREEZE_HOLD_SECONDS * 2;
+    case "pulse": {
+      // forward(0->1) + pull back(1->PULLBACK) + forward again(PULLBACK->1) + full reverse(1->0)
+      const pullbackSpan = (1 - PULSE_PULLBACK) * full;
+      return full + pullbackSpan + pullbackSpan + full;
+    }
+    case "bounce":
+      return BOUNCE_STOPS.slice(1).reduce((total: number, stop, i) => total + Math.abs(stop - BOUNCE_STOPS[i]) * full, 0);
+    // zoom, echo and mirror are effects on classic's timing.
+    default:
+      return full * 2;
+  }
 }
 
 /** Total output duration of the finished boomerang (all loops). */
@@ -105,6 +135,8 @@ export interface Leg {
   to: number;
   /** Whether this leg's playback rate follows EASE_ZONES (only "ease" uses this). */
   eased: boolean;
+  /** Whether it follows RAMP_ZONES, by progress through the leg (only "ramp"). */
+  ramp?: boolean;
   /** Seconds to hold on the current frame before this leg starts. */
   holdBefore: number;
 }
@@ -130,6 +162,19 @@ const LEGS_BY_MODE: Record<Mode, Leg[]> = {
     { from: 0, to: 1, eased: false, holdBefore: 0 },
     { from: 1, to: PULSE_PULLBACK, eased: false, holdBefore: 0 },
     { from: PULSE_PULLBACK, to: 1, eased: false, holdBefore: 0 },
+    { from: 1, to: 0, eased: false, holdBefore: 0 },
+  ],
+  ramp: [
+    { from: 0, to: 1, eased: false, ramp: true, holdBefore: 0 },
+    { from: 1, to: 0, eased: false, ramp: true, holdBefore: 0 },
+  ],
+  bounce: BOUNCE_STOPS.slice(1).map((to, i) => ({ from: BOUNCE_STOPS[i], to, eased: false, holdBefore: 0 })),
+  echo: [
+    { from: 0, to: 1, eased: false, holdBefore: 0 },
+    { from: 1, to: 0, eased: false, holdBefore: 0 },
+  ],
+  mirror: [
+    { from: 0, to: 1, eased: false, holdBefore: 0 },
     { from: 1, to: 0, eased: false, holdBefore: 0 },
   ],
 };

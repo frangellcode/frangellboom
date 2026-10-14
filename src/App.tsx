@@ -18,8 +18,11 @@ import { requestWakeLock, releaseWakeLock } from "./lib/wakeLock";
 import { probeVideo, type VideoSource } from "./lib/videoSource";
 import { isNativeApp } from "./lib/native";
 import { closeCameraNatively, createLoopNatively, createPreviewNatively, recordVideoNatively } from "./lib/nativeVideo";
-import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "./lib/pro";
+import { openPaywall, PRO_MODES, PRO_RESOLUTIONS, useIsPro, usePaywallOpen } from "./lib/pro";
 import { ProSheet } from "./components/ProSheet";
+import { buildLut, lookOverlays, lutBase64, LUT_SIZE, type LookId } from "./lib/looks";
+import { WelcomeTour } from "./components/WelcomeTour";
+import { hasSeenTour } from "./lib/tour";
 import "./App.css";
 
 type Step = "upload" | "trim" | "adjust" | "processing" | "result";
@@ -43,10 +46,19 @@ function App() {
   // Cold start: the sky waits (matching the launch screen) until everything
   // is loaded, then the home screen assembles itself; see App.css.
   const [intro, setIntro] = useState<"waiting" | "playing" | "done">(() => (introPending() ? "waiting" : "done"));
+  // The welcome tour. On the very first launch it opens straight out of the
+  // launch screen ("first"): the sky stays as it is, the tour comes up over
+  // it, and the home screen assembles itself only once the tour is closed.
+  // The "?" on the home screen reopens it ("open").
+  const [tour, setTour] = useState<"closed" | "first" | "open">("closed");
   useEffect(() => {
     if (intro !== "waiting") return;
-    prepareIntro().then(() => setIntro("playing"));
+    prepareIntro().then(() => (hasSeenTour() ? setIntro("playing") : setTour("first")));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, on the cold start
+  }, []);
+  const closeTour = useCallback(() => {
+    setTour("closed");
+    setIntro((current) => (current === "waiting" ? "playing" : current));
   }, []);
   // The intro's classes stay on for as long as the home screen it built is
   // up. Taking them off any earlier swaps each element back to its everyday
@@ -64,15 +76,18 @@ function App() {
   const [speed, setSpeed] = useState<Speed>(1);
   const [mode, setMode] = useState<Mode>("classic");
   const [resolution, setResolution] = useState<Resolution>("original");
+  const [look, setLook] = useState<LookId | null>(null);
+  const [lookAmount, setLookAmount] = useState(1);
   const isPro = useIsPro();
 
   // Without Pro, a Pro choice falls back to the best free one: Classic, and
-  // 1080p. (Original is the default for someone with Pro.)
+  // 2K. (Original is the default for someone with Pro.)
   useEffect(() => {
     if (isPro) return;
     if (PRO_MODES.includes(mode)) setMode("classic");
-    if (PRO_RESOLUTIONS.includes(resolution)) setResolution("1080");
-  }, [isPro, mode, resolution]);
+    if (PRO_RESOLUTIONS.includes(resolution)) setResolution("1440");
+    if (look) setLook(null);
+  }, [isPro, mode, resolution, look]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<LoopResult | null>(null);
@@ -140,6 +155,33 @@ function App() {
     [adoptSource],
   );
 
+  // A Live Photo is Pro. Without it, picking one opens the Pro sheet; if
+  // the purchase goes through there, that same Live Photo carries on to
+  // trimming, and if the sheet closes without it, it's let go.
+  const [pendingLivePhoto, setPendingLivePhoto] = useState<VideoSource | null>(null);
+  const paywallOpen = usePaywallOpen();
+  const handlePick = useCallback(
+    (selected: VideoSource) => {
+      if (selected.livePhoto && !isPro) {
+        setPendingLivePhoto(selected);
+        openPaywall();
+        return;
+      }
+      handleSelect(selected);
+    },
+    [isPro, handleSelect],
+  );
+  useEffect(() => {
+    if (!pendingLivePhoto) return;
+    if (isPro) {
+      setPendingLivePhoto(null);
+      handleSelect(pendingLivePhoto);
+    } else if (!paywallOpen) {
+      // Closed without buying.
+      setPendingLivePhoto(null);
+    }
+  }, [pendingLivePhoto, isPro, paywallOpen, handleSelect]);
+
   // A recording is already a loop's length, so it skips trimming: straight
   // to shaping the loop. The camera stays up (dimmed, spinner going) while
   // that screen is put in place underneath it — with no transition, since
@@ -158,6 +200,12 @@ function App() {
       try {
         const probed = await probeVideo(recorded.url);
         adoptSource(recorded, probed);
+        // Shot in slow motion (120 fps): it opens as slow motion, every
+        // frame of it real.
+        if (recorded.slowMotion) {
+          setMode("classic");
+          setSpeed(0.5);
+        }
         const length = Math.min(Math.max(probed?.duration ?? DEFAULT_SEGMENT, MIN_SEGMENT), MAX_SEGMENT);
         setSegmentDuration(length);
         setPreparingPreview(true);
@@ -192,10 +240,10 @@ function App() {
   );
 
   const recordAgain = useCallback(() => {
-    recordVideoNatively(t.recordHint)
+    recordVideoNatively(t.recordHint, isPro)
       .then((recorded) => recorded && handleRecord(recorded))
       .catch((err) => console.error(err));
-  }, [t.recordHint, handleRecord]);
+  }, [t.recordHint, handleRecord, isPro]);
 
   // Any other way onto a screen brings back the usual entrances.
   useEffect(() => {
@@ -243,7 +291,10 @@ function App() {
     try {
       const options = { start, duration: clampedSegmentDuration, loops, resolution, speed: effectiveSpeed, mode };
       if (isNativeApp) {
-        const { webPath, uri } = await createLoopNatively(source, { ...options, watermark: !isPro }, setProgress);
+        const nativeLook = look
+          ? { lut: lutBase64(buildLut(look, lookAmount)), size: LUT_SIZE, ...lookOverlays(look, lookAmount) }
+          : undefined;
+        const { webPath, uri } = await createLoopNatively(source, { ...options, watermark: !isPro, look: nativeLook }, setProgress);
         setResult({ url: webPath, uri });
       } else {
         const blob = await withFFmpeg((ffmpeg) => createBoomerang(ffmpeg, source, { ...options, onProgress: setProgress }));
@@ -265,7 +316,7 @@ function App() {
       if (!isNativeApp) resetFFmpeg().catch(() => {});
       releaseWakeLock();
     }
-  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, isPro]);
+  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, isPro, look, lookAmount]);
 
   const handleGoToAdjust = useCallback(async () => {
     if (!source) return;
@@ -304,15 +355,22 @@ function App() {
     >
       <header className="bar">
         <h1 className="bar__wordmark">Frangellboom</h1>
-        <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
-          <FadeText value={t.langToggle} trigger={lang} />
-        </button>
+        <div className="bar__actions">
+          {step === "upload" && (
+            <button type="button" className="bar__lang bar__help" onClick={() => setTour("open")} aria-label={t.tour.help}>
+              ?
+            </button>
+          )}
+          <button type="button" className="bar__lang" onClick={toggleLanguage} aria-label={t.langToggleLabel}>
+            <FadeText value={t.langToggle} trigger={lang} />
+          </button>
+        </div>
       </header>
 
       <main className="app__main">
         {step === "upload" && (
           <div className="screen hero" key="upload">
-            <VideoUploader onSelect={handleSelect} onRecord={handleRecord} error={error} />
+            <VideoUploader onSelect={handlePick} onRecord={handleRecord} error={error} />
             <SupportFooter />
           </div>
         )}
@@ -383,6 +441,8 @@ function App() {
                 duration={clampedSegmentDuration}
                 speed={effectiveSpeed}
                 mode={mode}
+                look={look}
+                lookAmount={lookAmount}
                 fadeIn={!enteredFromCamera}
                 onShown={() => previewShown.current?.()}
               />
@@ -400,6 +460,10 @@ function App() {
               onModeChange={setMode}
               resolution={resolution}
               onResolutionChange={setResolution}
+              look={look}
+              onLookChange={setLook}
+              lookAmount={lookAmount}
+              onLookAmountChange={setLookAmount}
             />
 
             {error && <p className="error">{error}</p>}
@@ -433,6 +497,7 @@ function App() {
           </div>
         )}
       </main>
+      {tour !== "closed" && <WelcomeTour soft={tour === "first"} onClose={closeTour} />}
       {isNativeApp && <ProSheet />}
     </div>
   );

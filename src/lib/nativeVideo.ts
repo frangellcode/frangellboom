@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { writeToCache } from "./nativeFiles";
 import type { Mode, Resolution, Speed } from "./boomerang";
 import type { VideoSource } from "./videoSource";
+import { openPaywall } from "./pro";
 
 interface PickedVideo {
   /** A URL the webview can stream the ORIGINAL file from. */
@@ -10,10 +11,20 @@ interface PickedVideo {
   name: string;
   mimeType: string;
   size: number;
+  /** The video inside a Live Photo (already made 9:16 if it was upright). */
+  livePhoto?: boolean;
 }
 
 interface VideoPickerPlugin {
-  pick(): Promise<{ video?: PickedVideo }>;
+  pick(options?: { livePhotosOnly?: boolean }): Promise<{ video?: PickedVideo }>;
+}
+
+export interface NativeLook {
+  /** buildLut's table, base64 (see lutBase64). */
+  lut: string;
+  size: number;
+  grain: number;
+  vignette: number;
 }
 
 interface RenderedFile {
@@ -34,6 +45,8 @@ interface LoopEnginePlugin {
     shortSide?: number;
     /** The free version's mark in the corner (see Watermark in LoopEnginePlugin.swift). */
     watermark?: boolean;
+    /** A film look: its colour table from looks.ts, and its grain and vignette. */
+    look?: NativeLook;
   }): Promise<RenderedFile>;
   preview(options: { path: string; start: number; duration: number }): Promise<RenderedFile>;
   addListener(event: "progress", listener: (data: { fraction: number }) => void): Promise<{ remove(): Promise<void> }>;
@@ -47,14 +60,18 @@ const LoopEngine = registerPlugin<LoopEnginePlugin>("LoopEngine");
 /** Opens the iOS video picker. Nothing is read into memory here — the video
  *  stays on disk, streamed by URL to the <video> elements and read directly
  *  by the native engine. Cancelling resolves to null. */
-export async function pickVideoNatively(): Promise<VideoSource | null> {
-  const { video } = await VideoPicker.pick();
+export async function pickVideoNatively(livePhotosOnly = false): Promise<VideoSource | null> {
+  const { video } = await VideoPicker.pick({ livePhotosOnly });
   if (!video) return null;
-  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
+  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path, livePhoto: video.livePhoto };
 }
 
 interface CameraPlugin {
-  record(options: { maxDuration: number; hint: string }): Promise<{ video?: { webPath: string; path: string; name: string } }>;
+  record(options: { maxDuration: number; hint: string; pro: boolean; slowMotion?: boolean }): Promise<{
+    video?: { webPath: string; path: string; name: string; slowMotion?: boolean };
+    /** A Pro extra was tapped without Pro: the camera closed for the Pro sheet. */
+    paywall?: boolean;
+  }>;
   close(): Promise<void>;
 }
 
@@ -70,10 +87,11 @@ export const MAX_RECORDING_SECONDS = 0.75;
 /** Opens the app's own camera. Resolves to null if the person closes it
  *  without recording; rejects with code "DENIED" when camera access is off.
  *  After a recording the camera stays up until closeCameraNatively(). */
-export async function recordVideoNatively(hint: string): Promise<VideoSource | null> {
-  const { video } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint });
+export async function recordVideoNatively(hint: string, pro: boolean, slowMotion = false): Promise<VideoSource | null> {
+  const { video, paywall } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint, pro, slowMotion });
+  if (paywall) openPaywall();
   if (!video) return null;
-  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
+  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path, slowMotion: video.slowMotion };
 }
 
 /** Fades the camera away — call once the screen that follows is in place. */
@@ -91,6 +109,7 @@ export async function importFileNatively(file: File): Promise<VideoSource> {
 
 const SHORT_SIDE: Record<Resolution, number | undefined> = {
   original: undefined,
+  "2160": 2160,
   "1440": 1440,
   "1080": 1080,
   "720": 720,
@@ -102,7 +121,16 @@ const SHORT_SIDE: Record<Resolution, number | undefined> = {
  *  webview's memory limits. */
 export async function createLoopNatively(
   source: VideoSource,
-  options: { start: number; duration: number; mode: Mode; speed: Speed; loops: number; resolution: Resolution; watermark: boolean },
+  options: {
+    start: number;
+    duration: number;
+    mode: Mode;
+    speed: Speed;
+    loops: number;
+    resolution: Resolution;
+    watermark: boolean;
+    look?: NativeLook;
+  },
   onProgress: (fraction: number) => void,
 ): Promise<RenderedFile> {
   if (!source.path) throw new Error("The video isn't on disk.");
@@ -117,6 +145,7 @@ export async function createLoopNatively(
       loops: options.loops,
       shortSide: SHORT_SIDE[options.resolution],
       watermark: options.watermark,
+      look: options.look,
     });
   } finally {
     await listener.remove();

@@ -3,6 +3,7 @@ import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
 import { importFileNatively, pickVideoNatively, recordVideoNatively } from "../lib/nativeVideo";
+import { openPaywall, useIsPro } from "../lib/pro";
 import type { VideoSource } from "../lib/videoSource";
 import { Headline } from "./Headline";
 
@@ -19,6 +20,7 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const isPro = useIsPro();
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
@@ -48,15 +50,24 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
       .catch((err) => console.error(err));
   }, [onSelect]);
 
-  const openCamera = useCallback(() => {
+  // The Pro shortcuts: straight to Live Photos, or the camera at 120 fps.
+  // Without Pro, the Pro sheet instead.
+  const openLivePhotos = useCallback(() => {
+    if (!isPro) return openPaywall();
+    pickVideoNatively(true)
+      .then((source) => source && onSelect(source))
+      .catch((err) => console.error(err));
+  }, [isPro, onSelect]);
+
+  const openCamera = useCallback((slowMotion = false) => {
     setCameraError(false);
-    recordVideoNatively(t.recordHint)
+    recordVideoNatively(t.recordHint, isPro, slowMotion)
       .then((source) => source && onRecord(source))
       .catch((err) => {
         if ((err as { code?: string }).code === "DENIED") setCameraError(true);
         else console.error(err);
       });
-  }, [onRecord, t.recordHint]);
+  }, [onRecord, t.recordHint, isPro]);
 
   return (
     <div
@@ -94,9 +105,21 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
         <FadeText value={t.importCta} trigger={lang} />
       </button>
       {isNativeApp && (
-        <button type="button" className="button button--sky" onClick={openCamera}>
-          <FadeText value={t.recordCta} trigger={lang} />
-        </button>
+        <>
+          <button type="button" className="button button--sky" onClick={() => openCamera()}>
+            <FadeText value={t.recordCta} trigger={lang} />
+          </button>
+          <div className="shortcuts">
+            <button type="button" className="button shortcut" onClick={openLivePhotos}>
+              <FadeText value={t.livePhotoCta} trigger={lang} />
+              {!isPro && <span className="shortcut__pro">PRO</span>}
+            </button>
+            <button type="button" className="button shortcut" onClick={() => (isPro ? openCamera(true) : openPaywall())}>
+              <FadeText value={t.slowMotionCta} trigger={lang} />
+              {!isPro && <span className="shortcut__pro">PRO</span>}
+            </button>
+          </div>
+        </>
       )}
       {cameraError && <p className="uploader__error">{t.cameraDenied}</p>}
       {!isNativeApp && (
@@ -105,19 +128,16 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
         </p>
       )}
       {error && <p className="uploader__error">{error}</p>}
-      <p className="uploader__meta">
-        <FadeText value={t.badgeOnDevice} trigger={lang} /> · <FadeText value={t.badgeQuality} trigger={lang} />
-      </p>
     </div>
   );
 }
 
 /** The app's arc as a piece of glass floating in the sky — the home screen's
  *  counterpart to the sculptural glass forms in the Air style reference. */
-function GlassArc() {
+export function GlassArc({ className = "glass" }: { className?: string }) {
   const arc = "M40,150 C40,86 76,30 120,30 C164,30 200,86 200,150";
   return (
-    <svg className="glass" viewBox="0 0 240 180" aria-hidden="true">
+    <svg className={className} viewBox="0 0 240 180" aria-hidden="true">
       <defs>
         <filter id="glass-soft" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="1.4" />

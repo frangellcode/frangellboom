@@ -8,6 +8,10 @@ export interface VideoSource {
   data: File | string;
   /** iOS app only: the file on disk the native engine reads. */
   path?: string;
+  /** iOS app only: picked as a Live Photo (turning one into a loop is Pro). */
+  livePhoto?: boolean;
+  /** iOS app only: recorded with the camera's 120 fps slow motion (Pro). */
+  slowMotion?: boolean;
 }
 
 /**

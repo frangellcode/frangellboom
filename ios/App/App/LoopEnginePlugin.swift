@@ -50,9 +50,15 @@ public class LoopEnginePlugin: CAPPlugin, CAPBridgedPlugin {
             speed: call.getDouble("speed") ?? 1,
             loops: max(1, call.getInt("loops") ?? 1),
             shortSide: call.getInt("shortSide"),
-            watermark: call.getBool("watermark") ?? false
+            watermark: call.getBool("watermark") ?? false,
+            look: call.getObject("look").flatMap(Look.init)
         )
         run(call, output: "loop.mp4") { engine, output in
+            // The web app only offers these with Pro, but the engine doesn't
+            // take its word for it: it asks StoreKit itself.
+            if request.needsPro, !(await ProPlugin.hasEntitlement()) {
+                throw LoopError.failed("This needs Frangellboom Pro.")
+            }
             try await engine.renderLoop(request, to: output) { [weak self] fraction in
                 self?.notifyListeners("progress", data: ["fraction": fraction])
             }
@@ -93,7 +99,10 @@ public class LoopEnginePlugin: CAPPlugin, CAPBridgedPlugin {
 }
 
 enum LoopMode: String {
-    case classic, ease, freeze, pulse, zoom
+    case classic, ease, freeze, pulse, zoom, ramp, bounce, echo, mirror
+
+    /// Modes that change the picture itself, frame by frame (see FrameEffects).
+    var drawsFrames: Bool { self == .echo || self == .mirror }
 }
 
 struct LoopRequest {
@@ -107,10 +116,40 @@ struct LoopRequest {
     let shortSide: Int?
     /// The free version's "Frangellboom" mark in the corner; Pro leaves it off.
     let watermark: Bool
+    /// A film look (Pro), or nil.
+    let look: Look?
+
+    /// Anything only Pro may export: a Pro mode, a look, no watermark, or a
+    /// quality above 2K (4K, or the source's own size).
+    var needsPro: Bool {
+        mode != .classic || look != nil || !watermark || (shortSide ?? Int.max) > 1440
+    }
 
     /// The same loop, made from a file that already holds just the segment.
     func startingAtZero(from url: URL) -> LoopRequest {
-        LoopRequest(source: url, start: 0, duration: duration, mode: mode, speed: speed, loops: loops, shortSide: shortSide, watermark: watermark)
+        LoopRequest(source: url, start: 0, duration: duration, mode: mode, speed: speed, loops: loops, shortSide: shortSide, watermark: watermark, look: look)
+    }
+}
+
+/// A film look, as src/lib/looks.ts hands it over: its colour table (built
+/// there, so the export matches the live preview exactly) and the strength of
+/// its grain and vignette.
+struct Look {
+    /// LUT_SIZE³ RGBA float32 entries, red fastest, sRGB in and out.
+    let cube: Data
+    let size: Int
+    let grain: Double
+    let vignette: Double
+
+    init?(_ object: JSObject) {
+        guard let base64 = object["lut"] as? String,
+              let cube = Data(base64Encoded: base64),
+              let size = (object["size"] as? NSNumber)?.intValue,
+              cube.count == size * size * size * 4 * MemoryLayout<Float>.size else { return nil }
+        self.cube = cube
+        self.size = size
+        grain = (object["grain"] as? NSNumber)?.doubleValue ?? 0
+        vignette = (object["vignette"] as? NSNumber)?.doubleValue ?? 0
     }
 }
 
@@ -131,6 +170,15 @@ private let easeZones: [(from: Double, to: Double, factor: Double)] = [
 ]
 private let freezeHoldSeconds = 0.35
 private let pulsePullback = 0.55
+// By progress through each leg, not position in the segment (see RAMP_ZONES).
+private let rampZones: [(from: Double, to: Double, factor: Double)] = [
+    (0, 0.35, 0.5),
+    (0.35, 0.7, 1.1),
+    (0.7, 1, 2.2),
+]
+private let bounceStops: [Double] = [0, 1, 0.4, 1, 0.75, 1, 0]
+/// Echo: how much of the trail each new frame keeps (0 none, 1 frozen).
+private let echoTrail: Float = 0.55
 private let zoomFactor: CGFloat = 1.15
 
 /// Everything about the source track the engine needs, loaded once.
@@ -291,7 +339,7 @@ final class LoopEngine {
             to: cycleURL,
             codec: .hevc,
             keyframeEveryFrame: false,
-            watermark: request.watermark ? Watermark(renderSize: renderSize) : nil
+            effects: FrameEffects(mode: request.mode, look: request.look, watermark: request.watermark ? Watermark(renderSize: renderSize) : nil)
         ) { progress(reverseEnd + $0 * (1 - reverseEnd) * 0.97) }
         stage("render cycle")
         if cycleURL != output {
@@ -331,7 +379,8 @@ final class LoopEngine {
         switch request.mode {
         case .classic: slowest = request.speed
         case .ease: slowest = easeZones.map(\.factor).min() ?? 1
-        case .freeze, .pulse, .zoom: slowest = 1
+        case .ramp: slowest = rampZones.map(\.factor).min() ?? 1
+        case .freeze, .pulse, .zoom, .bounce, .echo, .mirror: slowest = 1
         }
         guard slowest < 1 else { return 1 }
         return min(8, max(2, Int((60 / (source.frameRate * slowest)).rounded(.up))))
@@ -629,7 +678,7 @@ final class LoopEngine {
         to url: URL,
         codec: Codec,
         keyframeEveryFrame: Bool,
-        watermark: Watermark? = nil,
+        effects: FrameEffects? = nil,
         progress: @escaping (Double) -> Void
     ) async throws {
         let oriented = source.orientedSize
@@ -682,8 +731,9 @@ final class LoopEngine {
             keepsColor: keepsColor
         ))
         input.expectsMediaDataInRealTime = false
-        // Marked frames are drawn into fresh buffers from the writer's pool.
-        let adaptor = watermark.map { _ in
+        // Drawn-on frames (an effect, the mark) go into fresh buffers from the writer's pool.
+        let effects = effects?.isEmpty == false ? effects : nil
+        let adaptor = effects.map { _ in
             AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
                 kCVPixelBufferPixelFormatTypeKey as String: keepsColor ? source.pixelFormat : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                 kCVPixelBufferWidthKey as String: Int(renderSize.width),
@@ -703,11 +753,11 @@ final class LoopEngine {
             while !input.isReadyForMoreMediaData {
                 try await Task.sleep(nanoseconds: 2_000_000)
             }
-            if let watermark, let adaptor {
+            if let effects, let adaptor {
                 guard let frame = CMSampleBufferGetImageBuffer(sample),
                       let pool = adaptor.pixelBufferPool,
-                      let marked = watermark.draw(on: frame, pool: pool),
-                      adaptor.append(marked, withPresentationTime: CMSampleBufferGetPresentationTimeStamp(sample)) else {
+                      let drawn = effects.draw(on: frame, pool: pool),
+                      adaptor.append(drawn, withPresentationTime: CMSampleBufferGetPresentationTimeStamp(sample)) else {
                     throw writer.error ?? LoopError.failed("Couldn't write the video.")
                 }
             } else {
@@ -769,13 +819,129 @@ final class LoopEngine {
     }
 }
 
+/// Whatever is drawn onto the frames themselves, in order: the look's colour,
+/// the mode's effect (echo's trail, mirror), the look's vignette and grain,
+/// then the free version's mark. All of it is Core Image in the frame's own
+/// colour space, in half-float, so an HDR (HLG) frame stays HDR through it
+/// (a look's colour table works in sRGB, so with a look the brightest HDR
+/// highlights are brought into its range).
+final class FrameEffects {
+    private let mode: LoopMode
+    private let look: Look?
+    private let watermark: Watermark?
+    private let context = CIContext(options: [.workingFormat: CIFormat.RGBAh, .cacheIntermediates: false])
+    /// Echo: the last frame written, trail and all.
+    private var trail: CIImage?
+    /// The look's grain: one endless noise field, a fresh patch of it per frame
+    /// so the grain moves like film's does.
+    private let noise = CIFilter(name: "CIRandomGenerator")?.outputImage
+    private var frameIndex = 0
+
+    init(mode: LoopMode, look: Look? = nil, watermark: Watermark?) {
+        self.mode = mode
+        self.look = look
+        self.watermark = watermark
+    }
+
+    /// Nothing to draw: frames can go to the file untouched.
+    var isEmpty: Bool { !mode.drawsFrames && watermark == nil && look == nil }
+
+    /// A drawn-on copy of `frame`, in a buffer from `pool`.
+    func draw(on frame: CVPixelBuffer, pool: CVPixelBufferPool) -> CVPixelBuffer? {
+        var output: CVPixelBuffer?
+        guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &output) == kCVReturnSuccess, let output else { return nil }
+        CVBufferPropagateAttachments(frame, output)
+        let source = CIImage(cvPixelBuffer: frame)
+        let extent = source.extent
+        var image = source
+
+        if let look {
+            image = image.applyingFilter("CIColorCubeWithColorSpace", parameters: [
+                "inputCubeDimension": look.size,
+                "inputCubeData": look.cube,
+                "inputColorSpace": CGColorSpace(name: CGColorSpace.sRGB)!,
+            ])
+        }
+
+        switch mode {
+        case .mirror:
+            // The left half, and beside it the same half flipped: a reflection
+            // down the middle.
+            let left = image.cropped(to: CGRect(x: extent.minX, y: extent.minY, width: extent.width / 2, height: extent.height))
+            let reflected = left.transformed(by: CGAffineTransform(scaleX: -1, y: 1).translatedBy(x: -extent.width, y: 0))
+            image = reflected.composited(over: image).cropped(to: extent)
+        case .echo:
+            // Each frame over a fading copy of the ones before: a trail that
+            // follows the motion and dies away within a few frames.
+            if let trail {
+                image = image.applyingFilter("CIDissolveTransition", parameters: [
+                    kCIInputTargetImageKey: trail,
+                    kCIInputTimeKey: echoTrail,
+                ])
+            }
+        default:
+            break
+        }
+        if let look {
+            image = vignette(image, extent: extent, strength: look.vignette)
+            image = grain(image, extent: extent, strength: look.grain)
+        }
+        if let watermark { image = watermark.image.composited(over: image) }
+        frameIndex += 1
+
+        let colorSpace = CVImageBufferGetColorSpace(frame)?.takeUnretainedValue()
+            ?? source.colorSpace
+            ?? CGColorSpace(name: CGColorSpace.itur_709)!
+        context.render(image, to: output, bounds: extent, colorSpace: colorSpace)
+        if mode == .echo { trail = CIImage(cvPixelBuffer: output) }
+        return output
+    }
+}
+
+extension FrameEffects {
+    /// Darkens the corners as PolarGrid's vignette does: nothing to 55% of the
+    /// way out, then black up to 0.75 × strength at the corners.
+    fileprivate func vignette(_ image: CIImage, extent: CGRect, strength: Double) -> CIImage {
+        guard strength > 0 else { return image }
+        let radius = hypot(extent.width, extent.height) / 2
+        guard let gradient = CIFilter(name: "CIRadialGradient", parameters: [
+            "inputCenter": CIVector(x: extent.midX, y: extent.midY),
+            "inputRadius0": radius * 0.55,
+            "inputRadius1": radius,
+            "inputColor0": CIColor(red: 0, green: 0, blue: 0, alpha: 0),
+            "inputColor1": CIColor(red: 0, green: 0, blue: 0, alpha: CGFloat(0.75 * strength)),
+        ])?.outputImage else { return image }
+        return gradient.cropped(to: extent).composited(over: image)
+    }
+
+    /// Grey noise, as coarse as PolarGrid's (a grain every 2.4 px of a
+    /// 1080-wide picture), laid over with "overlay" at half the strength.
+    fileprivate func grain(_ image: CIImage, extent: CGRect, strength: Double) -> CIImage {
+        guard strength > 0, let noise else { return image }
+        let k = CGFloat(strength * 0.5)
+        let dot = max(1, 2.4 * min(extent.width, extent.height) / 1080)
+        // A different patch every frame, far enough apart not to repeat.
+        let offset = CGFloat((frameIndex * 7919) % 4096)
+        let grey = noise
+            .transformed(by: CGAffineTransform(translationX: -offset, y: -offset * 0.61))
+            .applyingFilter("CIColorMatrix", parameters: [
+                "inputRVector": CIVector(x: k, y: 0, z: 0, w: 0),
+                "inputGVector": CIVector(x: k, y: 0, z: 0, w: 0),
+                "inputBVector": CIVector(x: k, y: 0, z: 0, w: 0),
+                "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 0),
+                "inputBiasVector": CIVector(x: 0.5 - 0.5 * k, y: 0.5 - 0.5 * k, z: 0.5 - 0.5 * k, w: 1),
+            ])
+            .transformed(by: CGAffineTransform(scaleX: dot, y: dot))
+            .cropped(to: extent)
+        return grey.applyingFilter("CIOverlayBlendMode", parameters: [kCIInputBackgroundImageKey: image])
+    }
+}
+
 /// The free version's mark: "Frangellboom" in the bottom-right corner, white
 /// and half see-through with a soft shadow, sized to the video. Drawn once
-/// into an image, then laid over every frame with Core Image, in the frame's
-/// own colour space — an HDR (HLG) frame stays HDR under it.
+/// into an image, then laid over every frame (see FrameEffects).
 final class Watermark {
-    private let image: CIImage
-    private let context = CIContext(options: [.workingFormat: CIFormat.RGBAh, .cacheIntermediates: false])
+    let image: CIImage
 
     init(renderSize: CGSize) {
         let short = min(renderSize.width, renderSize.height)
@@ -804,19 +970,6 @@ final class Watermark {
         image = mark.transformed(by: CGAffineTransform(
             translationX: renderSize.width - mark.extent.width - margin + pad,
             y: margin - pad))
-    }
-
-    /// A copy of `frame` with the mark on it, in a buffer from `pool`.
-    func draw(on frame: CVPixelBuffer, pool: CVPixelBufferPool) -> CVPixelBuffer? {
-        var output: CVPixelBuffer?
-        guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &output) == kCVReturnSuccess, let output else { return nil }
-        CVBufferPropagateAttachments(frame, output)
-        let background = CIImage(cvPixelBuffer: frame)
-        let colorSpace = CVImageBufferGetColorSpace(frame)?.takeUnretainedValue()
-            ?? background.colorSpace
-            ?? CGColorSpace(name: CGColorSpace.itur_709)!
-        context.render(image.composited(over: background), to: output, bounds: background.extent, colorSpace: colorSpace)
-        return output
     }
 }
 
@@ -857,7 +1010,7 @@ private struct LoopComposition {
     private mutating func addLoop() throws {
         let speed = request.mode == .classic ? request.speed : 1
         switch request.mode {
-        case .classic, .zoom:
+        case .classic, .zoom, .echo, .mirror:
             try forward(0, 1, rate: speed)
             let zoomStart = cursor
             try backward(1, 0, rate: speed)
@@ -875,6 +1028,14 @@ private struct LoopComposition {
             try backward(1, pulsePullback, rate: 1)
             try forward(pulsePullback, 1, rate: 1)
             try backward(1, 0, rate: 1)
+        case .ramp:
+            // Progress through the leg: forwards that's the position, back it's 1 - position.
+            for zone in rampZones { try forward(zone.from, zone.to, rate: zone.factor) }
+            for zone in rampZones { try backward(1 - zone.from, 1 - zone.to, rate: zone.factor) }
+        case .bounce:
+            for (from, to) in zip(bounceStops, bounceStops.dropFirst()) {
+                if to > from { try forward(from, to, rate: 1) } else { try backward(from, to, rate: 1) }
+            }
         }
     }
 

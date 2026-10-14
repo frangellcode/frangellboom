@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { legsFor, zoneFactorAt, zoomLegIndex, type Mode } from "../lib/boomerangMath";
+import { legsFor, rampFactorAt, zoneFactorAt, zoomLegIndex, type Mode } from "../lib/boomerangMath";
 
 interface Params {
   /** Identifies the underlying video resource (e.g. its src/blob URL), purely
@@ -74,7 +74,12 @@ export function useBoomerangPreview(
       if (!seeking) {
         const leg = legs[legIndex];
         const dir = leg.to >= leg.from ? 1 : -1;
-        const rate = (leg.eased ? zoneFactorAt(mode, fraction) : 1) * speed;
+        const curve = leg.eased
+          ? zoneFactorAt(mode, fraction)
+          : leg.ramp
+            ? rampFactorAt((fraction - leg.from) / (leg.to - leg.from))
+            : 1;
+        const rate = curve * speed;
 
         let next = fraction + dt * rate * dir;
         const reachedEnd = dir > 0 ? next >= leg.to : next <= leg.to;

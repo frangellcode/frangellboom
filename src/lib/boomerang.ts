@@ -3,16 +3,17 @@ import { fetchFile } from "@ffmpeg/util";
 import type { VideoSource } from "./videoSource";
 import { EASE_ZONES, FREEZE_HOLD_SECONDS, PULSE_PULLBACK, forwardDuration, type Mode } from "./boomerangMath";
 
-export type Resolution = "original" | "1440" | "1080" | "720" | "480";
+export type Resolution = "original" | "2160" | "1440" | "1080" | "720" | "480";
 export type Speed = 0.5 | 1 | 1.5 | 2;
 export type { Mode };
 
-// Only the two highest tiers are big enough to risk the reverse pass (see
+// Only the highest tiers are big enough to risk the reverse pass (see
 // below) blowing past iOS Safari's per-tab memory ceiling, so only those
 // get the extra chunking overhead — 1080/720/480 keep the cheaper single-
 // pass reverse they've always used. Value is the chunk length in seconds.
 const REVERSE_CHUNK_SECONDS: Partial<Record<Resolution, number>> = {
   original: 0.3,
+  "2160": 0.3,
   "1440": 0.4,
 };
 
@@ -103,7 +104,14 @@ export async function createBoomerang(
   const del = (name: string) => ffmpeg.deleteFile(name).catch(() => {});
 
   try {
-    const scaleFilter = resolution === "original" ? "" : `,scale=-2:${resolution}`;
+    // 4K is measured on the short side, as the iOS app does, so a vertical
+    // 4K clip stays 2160×3840; and it never scales a smaller clip up.
+    const scaleFilter =
+      resolution === "original"
+        ? ""
+        : resolution === "2160"
+          ? ",scale=if(gt(iw\\,ih)\\,-2\\,min(iw\\,2160)):if(gt(iw\\,ih)\\,min(ih\\,2160)\\,-2)"
+          : `,scale=-2:${resolution}`;
 
     if (mode === "ease") {
       const zoneFiles: string[] = [];
