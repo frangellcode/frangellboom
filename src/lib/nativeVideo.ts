@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { writeToCache } from "./nativeFiles";
 import type { Mode, Resolution, Speed } from "./boomerang";
 import type { VideoSource } from "./videoSource";
+import { openPaywall } from "./pro";
 
 interface PickedVideo {
   /** A URL the webview can stream the ORIGINAL file from. */
@@ -66,7 +67,11 @@ export async function pickVideoNatively(): Promise<VideoSource | null> {
 }
 
 interface CameraPlugin {
-  record(options: { maxDuration: number; hint: string }): Promise<{ video?: { webPath: string; path: string; name: string } }>;
+  record(options: { maxDuration: number; hint: string; pro: boolean }): Promise<{
+    video?: { webPath: string; path: string; name: string; slowMotion?: boolean };
+    /** A Pro extra was tapped without Pro: the camera closed for the Pro sheet. */
+    paywall?: boolean;
+  }>;
   close(): Promise<void>;
 }
 
@@ -82,10 +87,11 @@ export const MAX_RECORDING_SECONDS = 0.75;
 /** Opens the app's own camera. Resolves to null if the person closes it
  *  without recording; rejects with code "DENIED" when camera access is off.
  *  After a recording the camera stays up until closeCameraNatively(). */
-export async function recordVideoNatively(hint: string): Promise<VideoSource | null> {
-  const { video } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint });
+export async function recordVideoNatively(hint: string, pro: boolean): Promise<VideoSource | null> {
+  const { video, paywall } = await Camera.record({ maxDuration: MAX_RECORDING_SECONDS, hint, pro });
+  if (paywall) openPaywall();
   if (!video) return null;
-  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path };
+  return { name: video.name, url: video.webPath, data: video.webPath, path: video.path, slowMotion: video.slowMotion };
 }
 
 /** Fades the camera away — call once the screen that follows is in place. */

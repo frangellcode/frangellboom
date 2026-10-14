@@ -3,6 +3,7 @@ import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
 import { importFileNatively, pickVideoNatively, recordVideoNatively } from "../lib/nativeVideo";
+import { useIsPro } from "../lib/pro";
 import type { VideoSource } from "../lib/videoSource";
 import { Headline } from "./Headline";
 
@@ -19,6 +20,7 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const isPro = useIsPro();
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
@@ -50,13 +52,13 @@ export function VideoUploader({ onSelect, onRecord, error }: VideoUploaderProps)
 
   const openCamera = useCallback(() => {
     setCameraError(false);
-    recordVideoNatively(t.recordHint)
+    recordVideoNatively(t.recordHint, isPro)
       .then((source) => source && onRecord(source))
       .catch((err) => {
         if ((err as { code?: string }).code === "DENIED") setCameraError(true);
         else console.error(err);
       });
-  }, [onRecord, t.recordHint]);
+  }, [onRecord, t.recordHint, isPro]);
 
   return (
     <div

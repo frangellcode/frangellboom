@@ -200,6 +200,12 @@ function App() {
       try {
         const probed = await probeVideo(recorded.url);
         adoptSource(recorded, probed);
+        // Shot in slow motion (120 fps): it opens as slow motion, every
+        // frame of it real.
+        if (recorded.slowMotion) {
+          setMode("classic");
+          setSpeed(0.5);
+        }
         const length = Math.min(Math.max(probed?.duration ?? DEFAULT_SEGMENT, MIN_SEGMENT), MAX_SEGMENT);
         setSegmentDuration(length);
         setPreparingPreview(true);
@@ -234,10 +240,10 @@ function App() {
   );
 
   const recordAgain = useCallback(() => {
-    recordVideoNatively(t.recordHint)
+    recordVideoNatively(t.recordHint, isPro)
       .then((recorded) => recorded && handleRecord(recorded))
       .catch((err) => console.error(err));
-  }, [t.recordHint, handleRecord]);
+  }, [t.recordHint, handleRecord, isPro]);
 
   // Any other way onto a screen brings back the usual entrances.
   useEffect(() => {
