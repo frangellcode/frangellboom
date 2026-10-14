@@ -48,6 +48,7 @@ const es = {
   modes: { classic: "Clásico", ease: "Suave", freeze: "Pausa", pulse: "Pulso", zoom: "Zoom", ramp: "Rampa", bounce: "Rebote", echo: "Eco", mirror: "Espejo" },
   look: "Estilo",
   lookNone: "Ninguno",
+  moreOptions: "Ver más",
   lookAmount: "Intensidad",
   looks: {
     retrato: "Retrato 400",
@@ -197,6 +198,7 @@ const en: typeof es = {
   modes: { classic: "Classic", ease: "Ease", freeze: "Freeze", pulse: "Pulse", zoom: "Zoom", ramp: "Ramp", bounce: "Bounce", echo: "Echo", mirror: "Mirror" },
   look: "Look",
   lookNone: "None",
+  moreOptions: "See more",
   lookAmount: "Intensity",
   looks: {
     retrato: "Portrait 400",

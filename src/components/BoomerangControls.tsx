@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
@@ -15,6 +16,53 @@ export function LockIcon() {
   );
 }
 
+
+/**
+ * A row of chips on one line that scrolls sideways. While there's more past
+ * the right edge, an arrow there says so (a tap on it scrolls on); it fades
+ * away once the end is in view.
+ */
+function ScrollChips({ children, moreLabel }: { children: React.ReactNode; moreLabel: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (el) setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+  // Every render: a language switch or a lock appearing changes how wide
+  // the chips are without changing the row's own size.
+  useEffect(update);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // The chosen chip in view to begin with, wherever it sits in the row.
+    const active = el.querySelector<HTMLElement>(".chip--active");
+    if (active && active.offsetLeft + active.offsetWidth > el.clientWidth) {
+      el.scrollLeft = active.offsetLeft - el.clientWidth / 2 + active.offsetWidth / 2;
+    }
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [update]);
+  return (
+    <div className="scroller">
+      <div ref={ref} className="chips chips--scroll" onScroll={update}>
+        {children}
+      </div>
+      <button
+        type="button"
+        className={`scroller__more${more ? " scroller__more--on" : ""}`}
+        aria-label={moreLabel}
+        tabIndex={more ? 0 : -1}
+        onClick={() => ref.current?.scrollBy({ left: ref.current.clientWidth * 0.7, behavior: "smooth" })}
+      >
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4.5 2.5 8 6l-3.5 3.5" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 interface BoomerangControlsProps {
   speed: Speed;
@@ -77,23 +125,27 @@ export function BoomerangControls({
 
   return (
     <div className="controls card">
-      {row(
-        t.mode,
-        MODES.map((value) => {
-          const locked = !isPro && PRO_MODES.includes(value);
-          return (
-            <button
-              key={value}
-              type="button"
-              className={`chip${mode === value ? " chip--active" : ""}${locked ? " chip--locked" : ""}`}
-              onClick={() => (locked ? openPaywall() : onModeChange(value))}
-            >
-              <FadeText value={t.modes[value]} trigger={lang} />
-              {locked && <LockIcon />}
-            </button>
-          );
-        }),
-      )}
+      <div className="controls__row">
+        <span className="controls__label">
+          <FadeText value={t.mode} trigger={lang} />
+        </span>
+        <ScrollChips moreLabel={t.moreOptions}>
+          {MODES.map((value) => {
+            const locked = !isPro && PRO_MODES.includes(value);
+            return (
+              <button
+                key={value}
+                type="button"
+                className={`chip${mode === value ? " chip--active" : ""}${locked ? " chip--locked" : ""}`}
+                onClick={() => (locked ? openPaywall() : onModeChange(value))}
+              >
+                <FadeText value={t.modes[value]} trigger={lang} />
+                {locked && <LockIcon />}
+              </button>
+            );
+          })}
+        </ScrollChips>
+      </div>
 
       {/* Only "classic" has a speed; the row eases open and shut. */}
       <div className={`controls__collapse${mode === "classic" ? " controls__collapse--open" : ""}`}>
@@ -120,7 +172,7 @@ export function BoomerangControls({
           <span className="controls__label">
             <FadeText value={t.look} trigger={lang} />
           </span>
-          <div className="chips chips--scroll">
+          <ScrollChips moreLabel={t.moreOptions}>
             <button type="button" className={`chip${look === null ? " chip--active" : ""}`} onClick={() => onLookChange(null)}>
               <FadeText value={t.lookNone} trigger={lang} />
             </button>
@@ -135,7 +187,7 @@ export function BoomerangControls({
                 {!isPro && <LockIcon />}
               </button>
             ))}
-          </div>
+          </ScrollChips>
           <div className={`controls__collapse controls__collapse--inline${look ? " controls__collapse--open" : ""}`}>
             <div className="controls__collapse-inner">
               <label className="controls__amount">

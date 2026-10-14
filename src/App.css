@@ -800,14 +800,62 @@
   color: var(--whiteout);
 }
 
-/* A long row (the film looks) scrolls sideways instead of wrapping, running
-   out to the card's edges. */
+/* A long row (the modes, the film looks) scrolls sideways instead of
+   wrapping, running out to the card's edges, with an arrow at the right
+   while there's more (see ScrollChips). */
+.scroller {
+  position: relative;
+  margin: 0 -20px;
+}
+
 .chips--scroll {
   flex-wrap: nowrap;
-  margin: 0 -20px;
   padding: 0 20px;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+.scroller__more {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 12px 0 0;
+  border: none;
+  border-radius: 0 var(--radius-card) var(--radius-card) 0;
+  background: linear-gradient(to right, rgba(245, 245, 245, 0), var(--haze) 60%);
+  color: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.scroller__more--on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scroller__more svg {
+  width: 14px;
+  height: 14px;
+  animation: nudge 1.6s ease-in-out infinite;
+}
+
+/* A small push to the right, now and then: there's more this way. */
+@keyframes nudge {
+  0%,
+  60%,
+  100% {
+    transform: none;
+  }
+  80% {
+    transform: translateX(3px);
+  }
 }
 
 .chips--scroll::-webkit-scrollbar {
