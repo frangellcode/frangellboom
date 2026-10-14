@@ -2,6 +2,8 @@ import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import type { Mode, Resolution, Speed } from "../lib/boomerang";
 import { openPaywall, PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "../lib/pro";
+import { NATIVE_ONLY_MODES } from "../lib/boomerangMath";
+import { isNativeApp } from "../lib/native";
 
 export function LockIcon() {
   return (
@@ -22,7 +24,9 @@ interface BoomerangControlsProps {
   onResolutionChange: (value: Resolution) => void;
 }
 
-const MODES: Mode[] = ["classic", "ease", "freeze", "pulse", "zoom"];
+const MODES: Mode[] = (["classic", "ease", "freeze", "pulse", "zoom", "ramp", "bounce", "echo", "mirror"] as Mode[]).filter(
+  (mode) => isNativeApp || !NATIVE_ONLY_MODES.includes(mode),
+);
 
 // Only "classic" exposes a speed picker (see App.tsx) — every other mode has
 // a fixed, non-configurable motion, so only the two speeds that have a clear

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { useBoomerangPreview } from "../hooks/useBoomerangPreview";
@@ -31,6 +31,8 @@ export function BoomerangPreview({ videoUrl, aspect, fadeIn = true, onShown, sta
   const sheetOnScreen = useSheetOnScreen();
 
   useBoomerangPreview(videoRef, { sourceKey: videoUrl, start, duration, speed, mode, playing: playing && !sheetOnScreen });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useFrameEffect(videoRef, canvasRef, mode);
 
   return (
     <div className="preview">
@@ -46,6 +48,7 @@ export function BoomerangPreview({ videoUrl, aspect, fadeIn = true, onShown, sta
           onShown?.();
         }}
       />
+      {(mode === "echo" || mode === "mirror") && <canvas ref={canvasRef} className="preview__effect" aria-hidden="true" />}
       <span className="preview__live-badge"><FadeText value={t.live} trigger={lang} /></span>
       <button
         type="button"
@@ -66,4 +69,67 @@ export function BoomerangPreview({ videoUrl, aspect, fadeIn = true, onShown, sta
       </button>
     </div>
   );
+}
+
+/** Echo: how much of the trail each new frame keeps — as in LoopEnginePlugin.swift. */
+const ECHO_TRAIL = 0.55;
+
+/**
+ * Echo and mirror change the picture itself, which a <video> can't show: a
+ * canvas over it redraws every frame the preview seeks to — mirror as the
+ * left half and its reflection, echo over a fading copy of the frames
+ * before, like the export.
+ */
+function useFrameEffect(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  mode: Mode,
+) {
+  useEffect(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!video || !canvas || !ctx || (mode !== "echo" && mode !== "mirror")) return;
+    let first = true;
+
+    const draw = () => {
+      const { videoWidth: vw, videoHeight: vh } = video;
+      if (!vw || !vh) return;
+      const scale = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.round(canvas.clientWidth * scale);
+      const height = Math.round(canvas.clientHeight * scale);
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+        first = true;
+      }
+      // Where the video's picture sits in its box (object-fit: contain).
+      const fit = Math.min(width / vw, height / vh);
+      const w = vw * fit;
+      const h = vh * fit;
+      const x = (width - w) / 2;
+      const y = (height - h) / 2;
+      if (mode === "mirror") {
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(video, x, y, w, h);
+        ctx.save();
+        ctx.translate(x + w, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, vw / 2, vh, 0, y, w / 2, h);
+        ctx.restore();
+      } else {
+        ctx.globalAlpha = first ? 1 : 1 - ECHO_TRAIL;
+        ctx.drawImage(video, x, y, w, h);
+        ctx.globalAlpha = 1;
+      }
+      first = false;
+    };
+    video.addEventListener("seeked", draw);
+    video.addEventListener("loadeddata", draw);
+    draw();
+    return () => {
+      video.removeEventListener("seeked", draw);
+      video.removeEventListener("loadeddata", draw);
+    };
+  }, [videoRef, canvasRef, mode]);
 }

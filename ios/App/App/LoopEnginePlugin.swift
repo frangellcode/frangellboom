@@ -93,7 +93,10 @@ public class LoopEnginePlugin: CAPPlugin, CAPBridgedPlugin {
 }
 
 enum LoopMode: String {
-    case classic, ease, freeze, pulse, zoom
+    case classic, ease, freeze, pulse, zoom, ramp, bounce, echo, mirror
+
+    /// Modes that change the picture itself, frame by frame (see FrameEffects).
+    var drawsFrames: Bool { self == .echo || self == .mirror }
 }
 
 struct LoopRequest {
@@ -131,6 +134,15 @@ private let easeZones: [(from: Double, to: Double, factor: Double)] = [
 ]
 private let freezeHoldSeconds = 0.35
 private let pulsePullback = 0.55
+// By progress through each leg, not position in the segment (see RAMP_ZONES).
+private let rampZones: [(from: Double, to: Double, factor: Double)] = [
+    (0, 0.35, 0.5),
+    (0.35, 0.7, 1.1),
+    (0.7, 1, 2.2),
+]
+private let bounceStops: [Double] = [0, 1, 0.4, 1, 0.75, 1, 0]
+/// Echo: how much of the trail each new frame keeps (0 none, 1 frozen).
+private let echoTrail: Float = 0.55
 private let zoomFactor: CGFloat = 1.15
 
 /// Everything about the source track the engine needs, loaded once.
@@ -291,7 +303,7 @@ final class LoopEngine {
             to: cycleURL,
             codec: .hevc,
             keyframeEveryFrame: false,
-            watermark: request.watermark ? Watermark(renderSize: renderSize) : nil
+            effects: FrameEffects(mode: request.mode, watermark: request.watermark ? Watermark(renderSize: renderSize) : nil)
         ) { progress(reverseEnd + $0 * (1 - reverseEnd) * 0.97) }
         stage("render cycle")
         if cycleURL != output {
@@ -331,7 +343,8 @@ final class LoopEngine {
         switch request.mode {
         case .classic: slowest = request.speed
         case .ease: slowest = easeZones.map(\.factor).min() ?? 1
-        case .freeze, .pulse, .zoom: slowest = 1
+        case .ramp: slowest = rampZones.map(\.factor).min() ?? 1
+        case .freeze, .pulse, .zoom, .bounce, .echo, .mirror: slowest = 1
         }
         guard slowest < 1 else { return 1 }
         return min(8, max(2, Int((60 / (source.frameRate * slowest)).rounded(.up))))
@@ -629,7 +642,7 @@ final class LoopEngine {
         to url: URL,
         codec: Codec,
         keyframeEveryFrame: Bool,
-        watermark: Watermark? = nil,
+        effects: FrameEffects? = nil,
         progress: @escaping (Double) -> Void
     ) async throws {
         let oriented = source.orientedSize
@@ -682,8 +695,9 @@ final class LoopEngine {
             keepsColor: keepsColor
         ))
         input.expectsMediaDataInRealTime = false
-        // Marked frames are drawn into fresh buffers from the writer's pool.
-        let adaptor = watermark.map { _ in
+        // Drawn-on frames (an effect, the mark) go into fresh buffers from the writer's pool.
+        let effects = effects?.isEmpty == false ? effects : nil
+        let adaptor = effects.map { _ in
             AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
                 kCVPixelBufferPixelFormatTypeKey as String: keepsColor ? source.pixelFormat : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                 kCVPixelBufferWidthKey as String: Int(renderSize.width),
@@ -703,11 +717,11 @@ final class LoopEngine {
             while !input.isReadyForMoreMediaData {
                 try await Task.sleep(nanoseconds: 2_000_000)
             }
-            if let watermark, let adaptor {
+            if let effects, let adaptor {
                 guard let frame = CMSampleBufferGetImageBuffer(sample),
                       let pool = adaptor.pixelBufferPool,
-                      let marked = watermark.draw(on: frame, pool: pool),
-                      adaptor.append(marked, withPresentationTime: CMSampleBufferGetPresentationTimeStamp(sample)) else {
+                      let drawn = effects.draw(on: frame, pool: pool),
+                      adaptor.append(drawn, withPresentationTime: CMSampleBufferGetPresentationTimeStamp(sample)) else {
                     throw writer.error ?? LoopError.failed("Couldn't write the video.")
                 }
             } else {
@@ -769,13 +783,69 @@ final class LoopEngine {
     }
 }
 
+/// Whatever is drawn onto the frames themselves, in order: the mode's effect
+/// (echo's trail, mirror), then the free version's mark. All of it is Core
+/// Image in the frame's own colour space, in half-float, so an HDR (HLG)
+/// frame stays HDR through it.
+final class FrameEffects {
+    private let mode: LoopMode
+    private let watermark: Watermark?
+    private let context = CIContext(options: [.workingFormat: CIFormat.RGBAh, .cacheIntermediates: false])
+    /// Echo: the last frame written, trail and all.
+    private var trail: CIImage?
+
+    init(mode: LoopMode, watermark: Watermark?) {
+        self.mode = mode
+        self.watermark = watermark
+    }
+
+    /// Nothing to draw: frames can go to the file untouched.
+    var isEmpty: Bool { !mode.drawsFrames && watermark == nil }
+
+    /// A drawn-on copy of `frame`, in a buffer from `pool`.
+    func draw(on frame: CVPixelBuffer, pool: CVPixelBufferPool) -> CVPixelBuffer? {
+        var output: CVPixelBuffer?
+        guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &output) == kCVReturnSuccess, let output else { return nil }
+        CVBufferPropagateAttachments(frame, output)
+        let source = CIImage(cvPixelBuffer: frame)
+        let extent = source.extent
+        var image = source
+
+        switch mode {
+        case .mirror:
+            // The left half, and beside it the same half flipped: a reflection
+            // down the middle.
+            let left = image.cropped(to: CGRect(x: extent.minX, y: extent.minY, width: extent.width / 2, height: extent.height))
+            let reflected = left.transformed(by: CGAffineTransform(scaleX: -1, y: 1).translatedBy(x: -extent.width, y: 0))
+            image = reflected.composited(over: image).cropped(to: extent)
+        case .echo:
+            // Each frame over a fading copy of the ones before: a trail that
+            // follows the motion and dies away within a few frames.
+            if let trail {
+                image = image.applyingFilter("CIDissolveTransition", parameters: [
+                    kCIInputTargetImageKey: trail,
+                    kCIInputTimeKey: echoTrail,
+                ])
+            }
+        default:
+            break
+        }
+        if let watermark { image = watermark.image.composited(over: image) }
+
+        let colorSpace = CVImageBufferGetColorSpace(frame)?.takeUnretainedValue()
+            ?? source.colorSpace
+            ?? CGColorSpace(name: CGColorSpace.itur_709)!
+        context.render(image, to: output, bounds: extent, colorSpace: colorSpace)
+        if mode == .echo { trail = CIImage(cvPixelBuffer: output) }
+        return output
+    }
+}
+
 /// The free version's mark: "Frangellboom" in the bottom-right corner, white
 /// and half see-through with a soft shadow, sized to the video. Drawn once
-/// into an image, then laid over every frame with Core Image, in the frame's
-/// own colour space — an HDR (HLG) frame stays HDR under it.
+/// into an image, then laid over every frame (see FrameEffects).
 final class Watermark {
-    private let image: CIImage
-    private let context = CIContext(options: [.workingFormat: CIFormat.RGBAh, .cacheIntermediates: false])
+    let image: CIImage
 
     init(renderSize: CGSize) {
         let short = min(renderSize.width, renderSize.height)
@@ -804,19 +874,6 @@ final class Watermark {
         image = mark.transformed(by: CGAffineTransform(
             translationX: renderSize.width - mark.extent.width - margin + pad,
             y: margin - pad))
-    }
-
-    /// A copy of `frame` with the mark on it, in a buffer from `pool`.
-    func draw(on frame: CVPixelBuffer, pool: CVPixelBufferPool) -> CVPixelBuffer? {
-        var output: CVPixelBuffer?
-        guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &output) == kCVReturnSuccess, let output else { return nil }
-        CVBufferPropagateAttachments(frame, output)
-        let background = CIImage(cvPixelBuffer: frame)
-        let colorSpace = CVImageBufferGetColorSpace(frame)?.takeUnretainedValue()
-            ?? background.colorSpace
-            ?? CGColorSpace(name: CGColorSpace.itur_709)!
-        context.render(image.composited(over: background), to: output, bounds: background.extent, colorSpace: colorSpace)
-        return output
     }
 }
 
@@ -857,7 +914,7 @@ private struct LoopComposition {
     private mutating func addLoop() throws {
         let speed = request.mode == .classic ? request.speed : 1
         switch request.mode {
-        case .classic, .zoom:
+        case .classic, .zoom, .echo, .mirror:
             try forward(0, 1, rate: speed)
             let zoomStart = cursor
             try backward(1, 0, rate: speed)
@@ -875,6 +932,14 @@ private struct LoopComposition {
             try backward(1, pulsePullback, rate: 1)
             try forward(pulsePullback, 1, rate: 1)
             try backward(1, 0, rate: 1)
+        case .ramp:
+            // Progress through the leg: forwards that's the position, back it's 1 - position.
+            for zone in rampZones { try forward(zone.from, zone.to, rate: zone.factor) }
+            for zone in rampZones { try backward(1 - zone.from, 1 - zone.to, rate: zone.factor) }
+        case .bounce:
+            for (from, to) in zip(bounceStops, bounceStops.dropFirst()) {
+                if to > from { try forward(from, to, rate: 1) } else { try backward(from, to, rate: 1) }
+            }
         }
     }
 

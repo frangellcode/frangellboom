@@ -5,6 +5,7 @@ import { isNativeApp } from "../lib/native";
 import { PRO_MODES, PRO_RESOLUTIONS, useIsPro } from "../lib/pro";
 import { markTourSeen } from "../lib/tour";
 import type { Mode, Resolution } from "../lib/boomerang";
+import { NATIVE_ONLY_MODES } from "../lib/boomerangMath";
 import { LockIcon } from "./BoomerangControls";
 import { Headline } from "./Headline";
 import { GlassArc } from "./VideoUploader";
@@ -22,6 +23,14 @@ function SkyClip({ className = "", mode }: { className?: string; mode?: Mode }) 
     <div className={`tour-clip ${className}${mode ? ` tour-clip--${mode}` : ""}`}>
       <div key={mode} className="tour-clip__zoom">
         <div className="tour-clip__sky" />
+        {/* Echo's trail: the same pan a beat behind, fading. */}
+        {mode === "echo" && [1, 2].map((n) => <div key={n} className={`tour-clip__sky tour-clip__ghost tour-clip__ghost--${n}`} />)}
+        {/* Mirror: the clip flipped, showing only its right half. */}
+        {mode === "mirror" && (
+          <div className="tour-clip__mirror">
+            <div className="tour-clip__sky" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -85,7 +94,7 @@ function MomentArt() {
 function ShapeArt() {
   const t = useT();
   const isPro = useIsPro();
-  const modes = Object.keys(t.modes) as Mode[];
+  const modes = (Object.keys(t.modes) as Mode[]).filter((mode) => isNativeApp || !NATIVE_ONLY_MODES.includes(mode));
   const [active, setActive] = useState(0);
   // Bumped by a tap, so the countdown to the next mode starts over.
   const [picked, setPicked] = useState(0);

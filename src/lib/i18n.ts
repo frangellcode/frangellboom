@@ -43,7 +43,7 @@ const es = {
   mode: "Modo",
   speed: "Velocidad",
   quality: "Calidad de salida",
-  modes: { classic: "Clásico", ease: "Suave", freeze: "Pausa", pulse: "Pulso", zoom: "Zoom" },
+  modes: { classic: "Clásico", ease: "Suave", freeze: "Pausa", pulse: "Pulso", zoom: "Zoom", ramp: "Rampa", bounce: "Rebote", echo: "Eco", mirror: "Espejo" },
   live: "EN VIVO",
   pausePreview: "Pausar vista previa",
   playPreview: "Reproducir vista previa",
@@ -64,7 +64,7 @@ const es = {
   pro: {
     title: "Frangellboom Pro",
     subtitle: "Un solo pago, para siempre. Sin suscripción.",
-    features: ["Modos Suave, Pausa, Pulso y Zoom", "Calidad 4K y original", "Sin marca de agua"],
+    features: ["8 modos más: Rampa, Rebote, Eco, Espejo…", "Fotos en vivo convertidas en bucle", "Calidad 4K y original", "Sin marca de agua"],
     unlock: (price: string) => `Desbloquear por ${price}`,
     loadingPrice: "Cargando…",
     unavailable: "No disponible ahora",
@@ -109,7 +109,7 @@ const es = {
         id: "shape",
         title: "Dale forma al {bucle}",
         body: isNativeApp
-          ? "Clásico, a velocidad normal o en cámara lenta, y con Pro cuatro modos más: Suave, Pausa, Pulso y Zoom. Lo ves en vivo antes de crearlo."
+          ? "Clásico, a velocidad normal o en cámara lenta, y con Pro ocho modos más, de Suave a Espejo. Toca uno para verlo en vivo."
           : "Cinco modos, cada uno con su propio movimiento. En Clásico también hay cámara lenta. Lo ves en vivo antes de crearlo.",
       },
       {
@@ -165,7 +165,7 @@ const en: typeof es = {
   mode: "Mode",
   speed: "Speed",
   quality: "Output quality",
-  modes: { classic: "Classic", ease: "Ease", freeze: "Freeze", pulse: "Pulse", zoom: "Zoom" },
+  modes: { classic: "Classic", ease: "Ease", freeze: "Freeze", pulse: "Pulse", zoom: "Zoom", ramp: "Ramp", bounce: "Bounce", echo: "Echo", mirror: "Mirror" },
   live: "LIVE",
   pausePreview: "Pause preview",
   playPreview: "Play preview",
@@ -185,7 +185,7 @@ const en: typeof es = {
   pro: {
     title: "Frangellboom Pro",
     subtitle: "One purchase, yours forever. No subscription.",
-    features: ["Ease, Freeze, Pulse and Zoom modes", "4K and original quality", "No watermark"],
+    features: ["8 more modes: Ramp, Bounce, Echo, Mirror…", "Live Photos turned into loops", "4K and original quality", "No watermark"],
     unlock: (price: string) => `Unlock for ${price}`,
     loadingPrice: "Loading…",
     unavailable: "Not available right now",
@@ -229,7 +229,7 @@ const en: typeof es = {
         id: "shape",
         title: "Shape the {loop}",
         body: isNativeApp
-          ? "Classic, at normal speed or in slow motion, and with Pro four more modes: Ease, Freeze, Pulse and Zoom. You see it live before you make it."
+          ? "Classic, at normal speed or in slow motion, and with Pro eight more modes, from Ease to Mirror. Tap one to see it live."
           : "Five modes, each with its own motion. Classic also does slow motion. You see it live before you make it.",
       },
       {

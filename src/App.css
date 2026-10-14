@@ -627,6 +627,15 @@
   transform: scale(1.15);
 }
 
+/* Echo and mirror, drawn over the video (see useFrameEffect). */
+.preview__effect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 /* Holds the preview's exact box while its clip is being made (a recording
    comes straight here), with the same spinner as the processing screen. */
 .preview__placeholder {
@@ -1445,6 +1454,71 @@
   }
 }
 
+/* Each leg starts slow and picks up speed, both ways (RAMP_ZONES). */
+.tour-clip--ramp .tour-clip__sky {
+  animation: clip-ramp 1.6s infinite;
+}
+
+@keyframes clip-ramp {
+  0% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+  50% {
+    transform: translateX(-41%);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Each return shorter, like a ball coming to rest (BOUNCE_STOPS). */
+.tour-clip--bounce .tour-clip__sky {
+  animation: clip-bounce 2.9s linear infinite;
+}
+
+@keyframes clip-bounce {
+  0%,
+  100% {
+    transform: none;
+  }
+  27%,
+  59.5%,
+  73% {
+    transform: translateX(-41%);
+  }
+  43.2% {
+    transform: translateX(-16.4%);
+  }
+  66.2% {
+    transform: translateX(-30.75%);
+  }
+}
+
+.tour-clip--echo .tour-clip__sky,
+.tour-clip--mirror .tour-clip__sky {
+  animation: clip-loop 1s linear infinite alternate;
+}
+
+.tour-clip__ghost--1 {
+  opacity: 0.45;
+  animation-delay: 0.09s !important;
+}
+
+.tour-clip__ghost--2 {
+  opacity: 0.25;
+  animation-delay: 0.18s !important;
+}
+
+.tour-clip__mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform: scaleX(-1);
+  clip-path: inset(0 0 0 50%);
+}
+
 @keyframes clip-zoom {
   0%,
   48% {
@@ -1501,9 +1575,8 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* All five modes on one line, even on the narrowest phones. */
+/* Compact, so the modes take as few lines as they can. */
 .tour-art--shape .tour-chips {
-  flex-wrap: nowrap;
   gap: 4px;
 }
 
