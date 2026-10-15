@@ -50,7 +50,6 @@ public class LoopEnginePlugin: CAPPlugin, CAPBridgedPlugin {
             speed: call.getDouble("speed") ?? 1,
             loops: max(1, call.getInt("loops") ?? 1),
             shortSide: call.getInt("shortSide"),
-            watermark: call.getBool("watermark") ?? false,
             look: call.getObject("look").flatMap(Look.init)
         )
         run(call, output: "loop.mp4") { engine, output in
@@ -114,20 +113,18 @@ struct LoopRequest {
     let loops: Int
     /// The output's short side in pixels, or nil to keep the source's.
     let shortSide: Int?
-    /// The free version's "Frangellboom" mark in the corner; Pro leaves it off.
-    let watermark: Bool
     /// A film look (Pro), or nil.
     let look: Look?
 
-    /// Anything only Pro may export: a Pro mode, a look, no watermark, or a
-    /// quality above 2K (4K, or the source's own size).
+    /// Anything only Pro may export: a Pro mode, a look, or a quality above
+    /// 2K (4K, or the source's own size).
     var needsPro: Bool {
-        mode != .classic || look != nil || !watermark || (shortSide ?? Int.max) > 1440
+        mode != .classic || look != nil || (shortSide ?? Int.max) > 1440
     }
 
     /// The same loop, made from a file that already holds just the segment.
     func startingAtZero(from url: URL) -> LoopRequest {
-        LoopRequest(source: url, start: 0, duration: duration, mode: mode, speed: speed, loops: loops, shortSide: shortSide, watermark: watermark, look: look)
+        LoopRequest(source: url, start: 0, duration: duration, mode: mode, speed: speed, loops: loops, shortSide: shortSide, look: look)
     }
 }
 
@@ -339,7 +336,7 @@ final class LoopEngine {
             to: cycleURL,
             codec: .hevc,
             keyframeEveryFrame: false,
-            effects: FrameEffects(mode: request.mode, look: request.look, watermark: request.watermark ? Watermark(renderSize: renderSize) : nil)
+            effects: FrameEffects(mode: request.mode, look: request.look)
         ) { progress(reverseEnd + $0 * (1 - reverseEnd) * 0.97) }
         stage("render cycle")
         if cycleURL != output {
@@ -820,15 +817,14 @@ final class LoopEngine {
 }
 
 /// Whatever is drawn onto the frames themselves, in order: the look's colour,
-/// the mode's effect (echo's trail, mirror), the look's vignette and grain,
-/// then the free version's mark. All of it is Core Image in the frame's own
+/// the mode's effect (echo's trail, mirror), then the look's vignette and
+/// grain. All of it is Core Image in the frame's own
 /// colour space, in half-float, so an HDR (HLG) frame stays HDR through it
 /// (a look's colour table works in sRGB, so with a look the brightest HDR
 /// highlights are brought into its range).
 final class FrameEffects {
     private let mode: LoopMode
     private let look: Look?
-    private let watermark: Watermark?
     private let context = CIContext(options: [.workingFormat: CIFormat.RGBAh, .cacheIntermediates: false])
     /// Echo: the last frame written, trail and all.
     private var trail: CIImage?
@@ -837,14 +833,13 @@ final class FrameEffects {
     private let noise = CIFilter(name: "CIRandomGenerator")?.outputImage
     private var frameIndex = 0
 
-    init(mode: LoopMode, look: Look? = nil, watermark: Watermark?) {
+    init(mode: LoopMode, look: Look? = nil) {
         self.mode = mode
         self.look = look
-        self.watermark = watermark
     }
 
     /// Nothing to draw: frames can go to the file untouched.
-    var isEmpty: Bool { !mode.drawsFrames && watermark == nil && look == nil }
+    var isEmpty: Bool { !mode.drawsFrames && look == nil }
 
     /// A drawn-on copy of `frame`, in a buffer from `pool`.
     func draw(on frame: CVPixelBuffer, pool: CVPixelBufferPool) -> CVPixelBuffer? {
@@ -886,7 +881,6 @@ final class FrameEffects {
             image = vignette(image, extent: extent, strength: look.vignette)
             image = grain(image, extent: extent, strength: look.grain)
         }
-        if let watermark { image = watermark.image.composited(over: image) }
         frameIndex += 1
 
         let colorSpace = CVImageBufferGetColorSpace(frame)?.takeUnretainedValue()
@@ -934,42 +928,6 @@ extension FrameEffects {
             .transformed(by: CGAffineTransform(scaleX: dot, y: dot))
             .cropped(to: extent)
         return grey.applyingFilter("CIOverlayBlendMode", parameters: [kCIInputBackgroundImageKey: image])
-    }
-}
-
-/// The free version's mark: "Frangellboom" in the bottom-right corner, white
-/// and half see-through with a soft shadow, sized to the video. Drawn once
-/// into an image, then laid over every frame (see FrameEffects).
-final class Watermark {
-    let image: CIImage
-
-    init(renderSize: CGSize) {
-        let short = min(renderSize.width, renderSize.height)
-        let font = UIFont.systemFont(ofSize: max(12, short * 0.032), weight: .semibold)
-        let shadow = NSShadow()
-        shadow.shadowColor = UIColor.black.withAlphaComponent(0.35)
-        shadow.shadowBlurRadius = font.pointSize * 0.25
-        shadow.shadowOffset = .zero
-        let text = NSAttributedString(string: "Frangellboom", attributes: [
-            .font: font,
-            .foregroundColor: UIColor.white.withAlphaComponent(0.8),
-            .shadow: shadow,
-            .kern: -font.pointSize * 0.01,
-        ])
-        let pad = font.pointSize * 0.4
-        let textSize = text.size()
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = false
-        let drawn = UIGraphicsImageRenderer(size: CGSize(width: ceil(textSize.width + pad * 2), height: ceil(textSize.height + pad * 2)), format: format).image { _ in
-            text.draw(at: CGPoint(x: pad, y: pad))
-        }
-        let margin = short * 0.035
-        let mark = CIImage(image: drawn) ?? CIImage.empty()
-        // Core Image's origin is bottom-left: this puts it in the bottom-right.
-        image = mark.transformed(by: CGAffineTransform(
-            translationX: renderSize.width - mark.extent.width - margin + pad,
-            y: margin - pad))
     }
 }
 

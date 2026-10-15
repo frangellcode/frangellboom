@@ -6,7 +6,7 @@ Esta guía va desde "tengo la cuenta de Apple Developer" hasta "la app está en 
 - **Bundle ID:** `com.frangellcode.frangellboom`
 - **Team:** Frangell Vasquez (9S78N8546T)
 - **Frangellboom Pro (IAP no consumible):** `com.frangellcode.frangellboom.pro` → $4.99
-  - Desbloquea los modos Ease, Freeze, Pulse y Zoom, las calidades 4K y "Original" (la resolución del video tal cual, incluso más allá de 4K), y exportar sin marca de agua. 2K y menos son gratis. Lo demás es gratis.
+  - Desbloquea los modos Ease, Freeze, Pulse y Zoom, las calidades 4K y "Original" (la resolución del video tal cual, incluso más allá de 4K). 1080p y 2K son gratis, sin marca de agua. Lo demás es gratis.
 - **Política de privacidad:** https://frangellcode.github.io/frangellboom/privacy.html
 - **Soporte:** https://frangellcode.github.io/frangellboom/support.html
 
@@ -74,9 +74,9 @@ Antes: **Business → Agreements** → acepta el **Paid Apps Agreement** (con ba
 | Non-Consumable | Frangellboom Pro | `com.frangellcode.frangellboom.pro` | $4.99 |
 
 - **Availability:** todos los países. **Price Schedule:** $4.99.
-- **Localization:** EN *Frangellboom Pro* / "Every mode and film look, the Pro camera, Live Photos, 4K, no watermark. Yours forever." · ES *Frangellboom Pro* / "Todos los modos y estilos, cámara Pro, Live Photos, 4K, sin marca de agua. Para siempre."
+- **Localization:** EN *Frangellboom Pro* / "Every mode and film look, the Pro camera, Live Photos and 4K. Yours forever." · ES *Frangellboom Pro* / "Todos los modos y estilos, cámara Pro, Live Photos y 4K. Para siempre."
 - **Review Screenshot:** una captura de la ventana "Frangellboom Pro" con el precio.
-- **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, the Ramp, Bounce, Echo and Mirror modes, 11 film looks, the Pro camera (120 fps slow motion, timer, ultra wide and telephoto lenses), turning Live Photos into loops, the 4K and Original export qualities, and exporting without the watermark. Restore purchases is in the same sheet.`
+- **Review Notes:** `Non-consumable. Unlocks the Ease, Freeze, Pulse and Zoom modes, the Ramp, Bounce, Echo and Mirror modes, 11 film looks, the Pro camera (120 fps slow motion, timer, ultra wide and telephoto lenses), turning Live Photos into loops and the 4K and Original export qualities. Restore purchases is in the same sheet.`
 
 ## 5. Privacidad
 
@@ -124,7 +124,7 @@ FULL QUALITY
 PRIVATE BY DESIGN
 Every video is processed on your iPhone. No account, no uploads, no tracking. Works with no internet connection.
 
-Free to use. Frangellboom Pro, a one-time purchase with no subscription, unlocks the Ease, Freeze, Pulse and Zoom modes, 4K and original quality, and exports without the watermark.
+Free to use. Frangellboom Pro, a one-time purchase with no subscription, unlocks the Ease, Freeze, Pulse and Zoom modes, and 4K and original quality.
 ```
 
 **Description (ES):**
@@ -152,7 +152,7 @@ CALIDAD MÁXIMA
 PRIVADA POR DISEÑO
 Cada video se procesa en tu iPhone. Sin cuenta, sin subidas, sin rastreo. Funciona sin internet.
 
-Gratis. Frangellboom Pro, un solo pago y sin suscripción, desbloquea los modos Ease, Freeze, Pulse y Zoom, la calidad 4K y original, y exportar sin marca de agua.
+Gratis. Frangellboom Pro, un solo pago y sin suscripción, desbloquea los modos Ease, Freeze, Pulse y Zoom, y la calidad 4K y original.
 ```
 
 **Keywords (máx. 100, sin espacios después de las comas):**
@@ -180,7 +180,7 @@ ES `bucle,video en bucle,ida y vuelta,reversa,rebobinar,cámara lenta,rebote,hdr
 
    To test: tap "Import your video", pick any video, choose a segment, tap Next, then "Create loop". Tap "Save or share" → "Save Video" to save it to Photos.
 
-   Frangellboom Pro is a non-consumable in-app purchase. "Go Pro" at the bottom of the home screen, or tapping any option with a lock (the Ease, Freeze, Pulse and Zoom modes; Original and 4K quality), opens the Pro sheet with the price, Buy and Restore purchases. Without Pro, exports carry a small "Frangellboom" watermark.
+   Frangellboom Pro is a non-consumable in-app purchase. "Go Pro" at the bottom of the home screen, or tapping any option with a lock (the Ease, Freeze, Pulse and Zoom modes; Original and 4K quality), opens the Pro sheet with the price, Buy and Restore purchases. Exports never carry a watermark, with or without Pro.
    ```
 4. **Add for Review → Submit for Review.** Suele tardar 24–48 h. Si hay rechazo, responde en el **Resolution Center**.
 

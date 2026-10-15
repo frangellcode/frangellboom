@@ -2,7 +2,7 @@ import Capacitor
 import StoreKit
 
 /// Frangellboom Pro: one purchase, kept for good, that unlocks the extra
-/// modes, the top export qualities and exports without the watermark.
+/// modes and looks, the Pro camera, Live Photos and the top export qualities.
 ///
 /// StoreKit 2 only, no third-party SDK and no server: the entitlement is the
 /// signed transaction on the device, which keeps the privacy label at

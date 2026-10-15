@@ -81,7 +81,7 @@ const es = {
   pro: {
     title: "Frangellboom Pro",
     subtitle: "Un solo pago, para siempre. Sin suscripción.",
-    features: ["8 modos más: Rampa, Rebote, Eco, Espejo…", "11 estilos de cine", "Cámara Pro: 120 fps, temporizador y lentes", "Fotos en vivo convertidas en bucle", "Calidad 4K y original", "Sin marca de agua"],
+    features: ["8 modos más: Rampa, Rebote, Eco, Espejo…", "11 estilos de cine", "Cámara Pro: 120 fps, temporizador y lentes", "Fotos en vivo convertidas en bucle", "Calidad 4K y original"],
     unlock: (price: string) => `Desbloquear por ${price}`,
     loadingPrice: "Cargando…",
     unavailable: "No disponible ahora",
@@ -228,7 +228,7 @@ const en: typeof es = {
   pro: {
     title: "Frangellboom Pro",
     subtitle: "One purchase, yours forever. No subscription.",
-    features: ["8 more modes: Ramp, Bounce, Echo, Mirror…", "11 film looks", "Pro camera: 120 fps, timer and lenses", "Live Photos turned into loops", "4K and original quality", "No watermark"],
+    features: ["8 more modes: Ramp, Bounce, Echo, Mirror…", "11 film looks", "Pro camera: 120 fps, timer and lenses", "Live Photos turned into loops", "4K and original quality"],
     unlock: (price: string) => `Unlock for ${price}`,
     loadingPrice: "Loading…",
     unavailable: "Not available right now",

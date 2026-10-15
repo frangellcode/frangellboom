@@ -43,8 +43,6 @@ interface LoopEnginePlugin {
     speed: Speed;
     loops: number;
     shortSide?: number;
-    /** The free version's mark in the corner (see Watermark in LoopEnginePlugin.swift). */
-    watermark?: boolean;
     /** A film look: its colour table from looks.ts, and its grain and vignette. */
     look?: NativeLook;
   }): Promise<RenderedFile>;
@@ -126,7 +124,6 @@ export async function createLoopNatively(
     speed: Speed;
     loops: number;
     resolution: Resolution;
-    watermark: boolean;
     look?: NativeLook;
   },
   onProgress: (fraction: number) => void,
@@ -142,7 +139,6 @@ export async function createLoopNatively(
       speed: options.speed,
       loops: options.loops,
       shortSide: SHORT_SIDE[options.resolution],
-      watermark: options.watermark,
       look: options.look,
     });
   } finally {

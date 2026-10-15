@@ -294,7 +294,7 @@ function App() {
         const nativeLook = look
           ? { lut: lutBase64(buildLut(look, lookAmount)), size: LUT_SIZE, ...lookOverlays(look, lookAmount) }
           : undefined;
-        const { webPath, uri } = await createLoopNatively(source, { ...options, watermark: !isPro, look: nativeLook }, setProgress);
+        const { webPath, uri } = await createLoopNatively(source, { ...options, look: nativeLook }, setProgress);
         setResult({ url: webPath, uri });
       } else {
         const blob = await withFFmpeg((ffmpeg) => createBoomerang(ffmpeg, source, { ...options, onProgress: setProgress }));
@@ -316,7 +316,7 @@ function App() {
       if (!isNativeApp) resetFFmpeg().catch(() => {});
       releaseWakeLock();
     }
-  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, isPro, look, lookAmount]);
+  }, [source, start, clampedSegmentDuration, loops, resolution, effectiveSpeed, mode, t, look, lookAmount]);
 
   const handleGoToAdjust = useCallback(async () => {
     if (!source) return;
