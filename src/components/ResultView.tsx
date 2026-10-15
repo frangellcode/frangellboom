@@ -3,7 +3,6 @@ import { useLanguage, useT } from "../lib/i18n";
 import { FadeText } from "./FadeText";
 import { isNativeApp } from "../lib/native";
 import { shareVideoNatively } from "../lib/nativeSave";
-import { Headline } from "./Headline";
 
 /** A finished loop: rendered by ffmpeg.wasm into memory on the web, or by the
  *  native engine into a file on disk in the iOS app. */
@@ -59,7 +58,6 @@ export function ResultView({ result, aspect, onReset }: ResultViewProps) {
 
   return (
     <div className={`result${leaving ? " result--leaving" : ""}`}>
-      <Headline text={t.ready} />
       <video
         src={url}
         className={`result__video video-fade${ready ? " video-fade--ready" : ""}`}

@@ -347,14 +347,21 @@ function App() {
     [mode, effectiveSpeed, clampedSegmentDuration, loops],
   );
 
-  const headline = (text: string) => <Headline text={text} />;
+  // Past the home screen the bar carries the step's title in place of the
+  // wordmark, so the video and its controls get that much more room.
+  const barTitle =
+    step === "trim" ? t.trimEyebrow : step === "adjust" || step === "processing" ? t.adjustEyebrow : step === "result" ? t.ready : null;
 
   return (
     <div
       className={`app${step === "upload" ? " app--hero" : ""}${intro === "waiting" ? " app--waiting" : intro === "playing" ? " app--intro" : ""}${underCamera ? " app--under-camera" : ""}`}
     >
       <header className="bar">
-        <h1 className="bar__wordmark">Frangellboom</h1>
+        {barTitle ? (
+          <Headline key={barTitle} text={barTitle} className="bar__title" />
+        ) : (
+          <h1 className="bar__wordmark">Frangellboom</h1>
+        )}
         <div className="bar__actions">
           {step === "upload" && (
             <button type="button" className="bar__lang bar__help" onClick={() => setTour("open")} aria-label={t.tour.help}>
@@ -377,7 +384,6 @@ function App() {
 
         {step === "trim" && videoUrl && (
           <div className={`screen${screenLeaving ? " screen--leaving" : ""}`} key="trim">
-            {headline(t.trimEyebrow)}
             <VideoTrimmer
               videoUrl={videoUrl}
               aspect={aspect}
@@ -428,7 +434,6 @@ function App() {
             className={`screen${screenLeaving ? " screen--leaving" : ""}${enteredFromCamera ? " screen--instant" : ""}`}
             key="adjust"
           >
-            {headline(t.adjustEyebrow)}
             {preparingPreview && !previewClipUrl ? (
               <div className="preview preview--waiting">
                 <div className="preview__placeholder" style={{ aspectRatio: aspect }} />

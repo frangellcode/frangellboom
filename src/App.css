@@ -26,6 +26,16 @@
   background: var(--void);
 }
 
+/* A step's title, in the bar where the wordmark sits on the home screen. */
+.bar__title {
+  min-width: 0;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  animation: reveal 0.5s ease-out backwards;
+}
+
 .bar__wordmark {
   font-size: 17px;
   font-weight: 500;
@@ -110,6 +120,7 @@
 }
 
 .headline em,
+.bar__title em,
 .poster__line em {
   font-family: var(--hand);
   font-style: normal;
