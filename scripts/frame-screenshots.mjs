@@ -17,9 +17,9 @@ const SHOTS = {
     items: [
       ["1-home", "1 Home", "Back-and-forth|video loops.", "No account. No uploads. All on your iPhone."],
       ["2-trim", "2 Pick the moment", "Pick the|perfect moment.", "Up to 2 seconds of any video"],
-      ["3-adjust", "3 Modes", "Five ways|to loop.", "Classic, Ease, Freeze, Pulse and Zoom"],
-      ["4-processing", "4 Hardware", "Made on your|iPhone's chip.", "4K, 60 fps and HDR, in seconds"],
-      ["5-result", "5 Result", "Ready to post.", "Full quality, straight to Photos"],
+      ["3-modes", "3 Modes", "Nine ways|to loop.", "Mirror, Echo, Bounce, Ramp and more"],
+      ["4-looks", "4 Looks", "Give it a|film look.", "11 styles, live as you watch"],
+      ["5-result", "5 Result", "Ready to post.", "Up to 4K, straight to Photos"],
     ],
   },
   es: {
@@ -27,9 +27,9 @@ const SHOTS = {
     items: [
       ["1-home", "1 Inicio", "Bucles de video|de ida y vuelta.", "Sin cuenta. Sin subidas. Todo en tu iPhone."],
       ["2-trim", "2 Elige el momento", "Elige el|momento exacto.", "Hasta 2 segundos de cualquier video"],
-      ["3-adjust", "3 Modos", "Cinco formas|de hacer bucles.", "Clásico, Suave, Pausa, Pulso y Zoom"],
-      ["4-processing", "4 Hardware", "Hecho con el chip|de tu iPhone.", "4K, 60 fps y HDR, en segundos"],
-      ["5-result", "5 Resultado", "Listo para publicar.", "Calidad máxima, directo a Fotos"],
+      ["3-modes", "3 Modos", "Nueve formas|de hacer bucles.", "Espejo, Eco, Rebote, Rampa y más"],
+      ["4-looks", "4 Estilos", "Dale un|look de cine.", "11 estilos, en vivo mientras lo ves"],
+      ["5-result", "5 Resultado", "Listo para publicar.", "Hasta 4K, directo a Fotos"],
     ],
   },
 };
